@@ -4,19 +4,41 @@
 #include <thread>
 
 namespace ActionModule {
-    izeEngine::HumanizeEngine()
+    HumanizeEngine::HumanizeEngine()
         : humanizationLevel(50),
         rng(std::random_device{}()) {
     }
 
     void HumanizeEngine::SetHumanizationLevel(int level) {
-        humanizationLevel = std::clamp(level, 1, 100);
+        humanizationLevel = std::clamp(level, 1, 100);//使用std::clamp函数将输入值限制在1到100的范围内
     }
 
     int HumanizeEngine::GetHumanizationLevel() const {
         return humanizationLevel;
     }
 
+    /// <summary>
+    /// 这个方法GenerateHumanizedPath用于生成一条模拟人类移动鼠标的路径，从起点到终点。
+
+   /* 主要功能：
+
+        如果未指定步数，会调用之前的CalculateStepsBasedOnDistance方法计算适当的步数
+        确保步数至少为2（有起点和终点）
+        根据拟人化级别计算曲率因子，决定路径的弯曲程度
+        创建起点和终点对象
+        生成贝塞尔曲线的两个控制点，这些控制点决定了曲线的形状
+        计算速度曲线，模拟人类移动速度的变化（可能是先慢后快再慢的过程）
+        使用三次贝塞尔曲线算法生成路径上的各个点：
+        根据速度曲线确定非均匀的t值（曲线参数）
+        计算每个t值对应的贝塞尔曲线上的点
+        对中间点添加微小的抖动，模拟人手不稳定性*/
+    /// </summary>
+    /// <param name="startX"></param>
+    /// <param name="startY"></param>
+    /// <param name="endX"></param>
+    /// <param name="endY"></param>
+    /// <param name="steps"></param>
+    /// <returns></returns>
     std::vector<Point> HumanizeEngine::GenerateHumanizedPath(
         double startX, double startY,
         double endX, double endY,
@@ -36,7 +58,9 @@ namespace ActionModule {
         Point end{ endX, endY };
 
         // 生成控制点
-        auto [control1, control2] = GenerateControlPoints(start, end, curveFactor);
+        auto controlPoints = GenerateControlPoints(start, end, curveFactor);
+        Point control1 = controlPoints.first;
+        Point control2 = controlPoints.second;
 
         // 生成路径点
         std::vector<Point> path;
@@ -50,7 +74,8 @@ namespace ActionModule {
         for (size_t i = 0; i < steps; ++i) {
             // 非均匀t值，基于速度曲线
             cumulativeDistance += velocities[i];
-            double t = cumulativeDistance;
+            // 确保t值在[0,1]范围内
+            double t = std::min(1.0, cumulativeDistance);
 
             Point point = CalculateBezierPoint(t, start, control1, control2, end);
 
@@ -90,6 +115,25 @@ namespace ActionModule {
         std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
     }
 
+    /// <summary>
+    /// 计算从一个点移动到另一个点时需要的步数，并考虑了拟人化级别。
+
+    /*具体功能：
+
+        接收两个点的坐标：起点(startX, startY)和终点(endX, endY)
+        使用欧几里得距离公式(std::hypot)计算两点间的直线距离
+        初步将距离转换为基础步数，基本规则是每10像素一步
+        根据类的humanizationLevel成员变量增加步数：
+        拟人化级别为0时，乘数为1.0（不增加）
+        拟人化级别为100时，乘数为1.5（增加50 % ）
+        中间值按比例计算
+        最后确保步数在2到60之间，既不会太少也不会过多*/
+    /// </summary>
+    /// <param name="startX"></param>
+    /// <param name="startY"></param>
+    /// <param name="endX"></param>
+    /// <param name="endY"></param>
+    /// <returns></returns>
     size_t HumanizeEngine::CalculateStepsBasedOnDistance(
         double startX, double startY,
         double endX, double endY) const {
@@ -166,6 +210,10 @@ namespace ActionModule {
         std::vector<double> velocities(steps);
 
         if (steps <= 1) {
+            // 如果只有一步，给它一个有效的速度值
+            if (steps == 1) {
+                velocities[0] = 1.0;
+            }
             return velocities;
         }
 
@@ -182,6 +230,13 @@ namespace ActionModule {
 
         size_t accelEnd = static_cast<size_t>(steps * accelRatio);
         size_t decelStart = static_cast<size_t>(steps * (1.0 - decelRatio));
+
+        // 确保decelStart > accelEnd
+        if (decelStart <= accelEnd) {
+            decelStart = accelEnd + 1;
+        }
+        // 确保不越界
+        decelStart = std::min(decelStart, steps - 1);
 
         // 最小速度和最大速度比例
         double minVelocity = 0.5;

@@ -15,7 +15,7 @@ namespace ActionModule {
         // 远距离策略使用的步数
         size_t steps = humanizer->CalculateStepsBasedOnDistance(currentX, currentY, targetX, targetY);
 
-        // 增加步数确保更精确的移动
+        // 增加步数确保更精确的移动 该策略会在远距离时使用更平滑的路径
         steps = static_cast<size_t>(steps * 1.2);
         steps = std::clamp(steps, size_t(5), size_t(60));
 
@@ -28,10 +28,11 @@ namespace ActionModule {
         aimPath.reserve(path.size());
 
         auto now = std::chrono::high_resolution_clock::now();
-        double timePerStep = 1000.0 / 60.0; // 假设60fps
+        double timePerStep = 1000.0 / 160.0; // 假设90fps
 
         for (size_t i = 0; i < path.size(); ++i) {
             AimPoint point;
+            // 将路径点浮点数据转换为整数坐标
             point.x = static_cast<int>(std::round(path[i].x));
             point.y = static_cast<int>(std::round(path[i].y));
 

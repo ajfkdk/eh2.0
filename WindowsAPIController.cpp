@@ -1,11 +1,14 @@
 #include "WindowsAPIController.h"
 #include <thread>
+#include <algorithm> 
 
 namespace ActionModule {
 
+    // WindowsAPIController类实现
     WindowsAPIController::WindowsAPIController() : screenWidth(0), screenHeight(0) {
     }
 
+    // 移动鼠标到指定坐标
     void WindowsAPIController::MoveTo(int x, int y) {
         // 确保坐标在屏幕范围内
         x = std::max(0, std::min(x, screenWidth - 1));

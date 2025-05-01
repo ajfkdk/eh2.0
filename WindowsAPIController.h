@@ -1,8 +1,10 @@
 #ifndef WINDOWS_API_CONTROLLER_H
 #define WINDOWS_API_CONTROLLER_H
 
-#include "IMouseController.h"
+// 定义NOMINMAX防止windows.h定义min和max宏
+#define NOMINMAX
 #include <windows.h>
+#include "IMouseController.h"
 
 namespace ActionModule {
 
@@ -20,7 +22,7 @@ namespace ActionModule {
         void Cleanup() override;
 
     private:
-        // 屏幕信息
+        // 屏幕数据
         int screenWidth;
         int screenHeight;
 

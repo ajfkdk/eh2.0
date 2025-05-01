@@ -31,10 +31,8 @@
     <ClInclude Include="IFrameCapture.h" />
     <ClInclude Include="IMouseController.h" />
     <ClInclude Include="inference.h" />
-    <ClInclude Include="LogitechController.h" />
     <ClInclude Include="LongRangeStrategy.h" />
     <ClInclude Include="MidRangeStrategy.h" />
-    <ClInclude Include="MouseActionLogger.h" />
     <ClInclude Include="MovingTargetStrategy.h" />
     <ClInclude Include="MultiTargetStrategy.h" />
     <ClInclude Include="PredictionModule.h" />
@@ -54,11 +52,9 @@
     <ClCompile Include="HardwareController.cpp" />
     <ClCompile Include="HumanizeEngine.cpp" />
     <ClCompile Include="inference.cpp" />
-    <ClCompile Include="LogitechController.cpp" />
     <ClCompile Include="LongRangeStrategy.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MidRangeStrategy.cpp" />
-    <ClCompile Include="MouseActionLogger.cpp" />
     <ClCompile Include="MovingTargetStrategy.cpp" />
     <ClCompile Include="MultiTargetStrategy.cpp" />
     <ClCompile Include="PredictionModule.cpp" />

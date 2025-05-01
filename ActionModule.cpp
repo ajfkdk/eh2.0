@@ -1,16 +1,16 @@
 #include "ActionModule.h"
-#include "MouseController/IMouseController.h"
-#include "MouseController/WindowsAPIController.h"
-#include "MouseController/LogitechController.h"
-#include "MouseController/HardwareController.h"
-#include "AimingStrategy/IAimingStrategy.h"
-#include "AimingStrategy/LongRangeStrategy.h"
-#include "AimingStrategy/MidRangeStrategy.h"
-#include "AimingStrategy/CloseRangeStrategy.h"
-#include "AimingStrategy/MultiTargetStrategy.h"
-#include "AimingStrategy/MovingTargetStrategy.h"
-#include "HumanizeEngine/HumanizeEngine.h"
-#include "Logger/MouseActionLogger.h"
+#include "IMouseController.h"
+#include "WindowsAPIController.h"
+//#include "LogitechController.h"
+#include "HardwareController.h"
+#include "IAimingStrategy.h"
+#include "LongRangeStrategy.h"
+#include "MidRangeStrategy.h"
+#include "CloseRangeStrategy.h"
+#include "MultiTargetStrategy.h"
+#include "MovingTargetStrategy.h"
+#include "HumanizeEngine.h"
+#include "PredictionModule.h" // 引入预测模块头文件
 #include <iostream>
 #include <windows.h>
 #include <chrono>
@@ -29,27 +29,27 @@ namespace ActionModule {
     std::mutex ActionModule::instanceMutex;
 
     ActionModule& ActionModule::GetInstance() {
-        std::lock_guard<std::mutex> lock(instanceMutex);
+        std::lock_guard<std::mutex> lock(instanceMutex); //1. 加锁，防止多线程同时创建实例
         if (!instance) {
-            instance = new ActionModule();
+            instance = new ActionModule(); // 3. 不存在则创建新实例
         }
         return *instance;
     }
 
     ActionModule::ActionModule()
-        : running(false),
-        currentStrategy(nullptr),
-        humanizationLevel(50),
-        currentControllerType(ControllerType::WINDOWS_API),
-        currentStrategyType(StrategyType::AUTO_DETECT),
-        firing(false),
-        screenWidth(1920),
-        screenHeight(1080),
-        imageSize(320) {
-
+        : running(false),                               // 1. 初始化 running 为 false
+        currentStrategy(nullptr),                       // 2. 初始化 currentStrategy 为 nullptr
+        humanizationLevel(50),                          // 3. 初始化 humanizationLevel 为 50
+        currentControllerType(ControllerType::WINDOWS_API),       // 4. 初始化 currentControllerType
+        currentStrategyType(StrategyType::AUTO_DETECT),           // 5. 初始化 currentStrategyType
+        firing(false),                                  // 6. 初始化 firing 为 false
+        screenWidth(1920),                              // 7. 初始化 screenWidth 为 1920
+        screenHeight(1080),                             // 8. 初始化 screenHeight 为 1080
+        imageSize(320)                                  // 9. 初始化 imageSize 为 320
+    {
         // 获取屏幕尺寸
-        screenWidth = GetSystemMetrics(SM_CXSCREEN);
-        screenHeight = GetSystemMetrics(SM_CYSCREEN);
+        screenWidth = GetSystemMetrics(SM_CXSCREEN);    // 10. 获取当前屏幕宽度
+        screenHeight = GetSystemMetrics(SM_CYSCREEN);   // 11. 获取当前屏幕高度
     }
 
     ActionModule::~ActionModule() {
@@ -57,10 +57,8 @@ namespace ActionModule {
         Cleanup();
     }
 
-    std::thread ActionModule::Initialize(
-        ControllerType controllerType,
-        StrategyType strategyType,
-        int humanizationLevel) {
+    //初始化动作模块，接收控制器类型、策略类型和拟人化强度
+    std::thread ActionModule::Initialize(ControllerType controllerType, StrategyType strategyType,int humanizationLevel) {
 
         auto& moduleInstance = GetInstance();
 
@@ -69,20 +67,17 @@ namespace ActionModule {
         moduleInstance.currentStrategyType = strategyType;
         moduleInstance.SetHumanizationLevel(humanizationLevel);
 
-        // 初始化日志
-        MouseActionLogger::GetInstance().Initialize();
-        MouseActionLogger::GetInstance().LogEvent("INIT", "ActionModule initializing");
 
         // 创建控制器
         moduleInstance.mouseController = moduleInstance.CreateController(controllerType);
         if (!moduleInstance.mouseController) {
-            MouseActionLogger::GetInstance().LogEvent("ERROR", "Failed to create mouse controller");
             moduleInstance.mouseController = std::make_unique<WindowsAPIController>(); // 使用默认控制器
         }
 
         // 初始化控制器
         if (!moduleInstance.mouseController->Initialize()) {
-            MouseActionLogger::GetInstance().LogEvent("ERROR", "Failed to initialize mouse controller");
+            // 打印错误信息
+            std::cerr << "Failed to initialize mouse controller" << std::endl;
         }
 
         // 加载瞄准策略
@@ -91,12 +86,6 @@ namespace ActionModule {
         // 创建拟人化引擎
         moduleInstance.humanizeEngine = std::make_unique<HumanizeEngine>();
         moduleInstance.humanizeEngine->SetHumanizationLevel(humanizationLevel);
-
-        // 记录初始化信息
-        MouseActionLogger::GetInstance().LogEvent("INIT", "Using controller: " +
-            moduleInstance.mouseController->GetName());
-        MouseActionLogger::GetInstance().LogEvent("INIT", "Humanization level: " +
-            std::to_string(humanizationLevel));
 
         // 启动工作线程
         moduleInstance.running = true;
@@ -121,9 +110,6 @@ namespace ActionModule {
                 }
             }
 
-            // 清理日志
-            MouseActionLogger::GetInstance().LogEvent("CLEANUP", "ActionModule shutting down");
-            MouseActionLogger::GetInstance().Cleanup();
 
             // 删除实例
             delete instance;
@@ -160,8 +146,6 @@ namespace ActionModule {
                 instance->humanizeEngine->SetHumanizationLevel(level);
             }
 
-            MouseActionLogger::GetInstance().LogEvent("CONFIG",
-                "Humanization level set to: " + std::to_string(level));
         }
     }
 
@@ -179,9 +163,6 @@ namespace ActionModule {
         std::lock_guard<std::mutex> lock(instanceMutex);
 
         if (instance && instance->currentControllerType != type) {
-            // 记录变更
-            MouseActionLogger::GetInstance().LogEvent("CONFIG",
-                "Changing controller type to: " + std::to_string(static_cast<int>(type)));
 
             // 清理当前控制器
             if (instance->mouseController) {
@@ -195,12 +176,13 @@ namespace ActionModule {
             if (instance->mouseController) {
                 instance->mouseController->Initialize();
 
-                MouseActionLogger::GetInstance().LogEvent("CONFIG",
-                    "Controller changed to: " + instance->mouseController->GetName());
+                //打印控制器类型
+                std::string controllerName = instance->mouseController->GetName();
+                std::cout << "Mouse controller initialized: " << controllerName << std::endl;
+                
             }
             else {
-                MouseActionLogger::GetInstance().LogEvent("ERROR",
-                    "Failed to create new controller, using default");
+                std::cerr << "Failed to create mouse controller of type: " << static_cast<int>(type) << std::endl;
 
                 instance->mouseController = std::make_unique<WindowsAPIController>();
                 instance->mouseController->Initialize();
@@ -221,8 +203,7 @@ namespace ActionModule {
                 if (index < instance->strategies.size()) {
                     instance->currentStrategy = instance->strategies[index].get();
 
-                    MouseActionLogger::GetInstance().LogEvent("CONFIG",
-                        "Aiming strategy set to: " + instance->currentStrategy->GetName());
+                   std::cout << "Strategy set to: " << instance->currentStrategy->GetName() << std::endl;
                 }
             }
         }
@@ -235,8 +216,7 @@ namespace ActionModule {
             instance->mouseController->LeftClick();
 
             auto [x, y] = instance->GetCurrentMousePosition();
-            MouseActionLogger::GetInstance().LogMouseClick(x, y,
-                instance->mouseController->GetName(), "LeftClick");
+            std::cout << "Mouse clicked at: (" << x << ", " << y << ")" << std::endl;
         }
     }
 
@@ -248,8 +228,7 @@ namespace ActionModule {
             instance->mouseController->LeftDown();
 
             auto [x, y] = instance->GetCurrentMousePosition();
-            MouseActionLogger::GetInstance().LogMouseClick(x, y,
-                instance->mouseController->GetName(), "LeftDown");
+         
         }
     }
 
@@ -261,13 +240,11 @@ namespace ActionModule {
             instance->mouseController->LeftUp();
 
             auto [x, y] = instance->GetCurrentMousePosition();
-            MouseActionLogger::GetInstance().LogMouseClick(x, y,
-                instance->mouseController->GetName(), "LeftUp");
+
         }
     }
 
     void ActionModule::WorkerThread() {
-        MouseActionLogger::GetInstance().LogEvent("THREAD", "Worker thread started");
 
         // 设置线程优先级
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
@@ -280,18 +257,20 @@ namespace ActionModule {
         auto lastProcessTime = std::chrono::high_resolution_clock::now();
 
         while (running) {
-            // 目标帧率控制 (60fps = ~16.67ms/frame)
+            // 目标帧率控制 
             auto now = std::chrono::high_resolution_clock::now();
+            // 计算每帧经过的时间
             auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProcessTime).count();
 
-            if (elapsed < 16) {
+            // 控制帧率
+            if (elapsed < 10) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 continue;
             }
 
             lastProcessTime = now;
 
-            // 获取当前鼠标位置
+            // 获取当前鼠标位置      这种写法是一种简洁的方式来处理一次性获取多个返回值的情况
             std::tie(currentX, currentY) = GetCurrentMousePosition();
 
             // 获取预测结果
@@ -302,13 +281,13 @@ namespace ActionModule {
 
             // 检查预测模块是否还在运行
             if (!PredictionModule::IsRunning()) {
-                MouseActionLogger::GetInstance().LogEvent("ERROR", "Prediction module stopped, stopping action module");
+                std::cerr << "Prediction module stopped, stopping action module" << std::endl;
                 running = false;
                 break;
             }
         }
 
-        MouseActionLogger::GetInstance().LogEvent("THREAD", "Worker thread stopped");
+        
     }
 
     void ActionModule::ProcessPrediction(const PredictionResult& prediction) {
@@ -350,7 +329,7 @@ namespace ActionModule {
         SelectBestStrategy(scene);
 
         if (!currentStrategy) {
-            MouseActionLogger::GetInstance().LogEvent("ERROR", "No aiming strategy selected");
+            std::cerr << "No valid strategy found" << std::endl;
             return;
         }
 
@@ -369,17 +348,12 @@ namespace ActionModule {
             // 移动鼠标
             mouseController->MoveTo(point.x, point.y);
 
-            // 记录日志
-            MouseActionLogger::GetInstance().LogMouseMove(
-                currentX, currentY, point.x, point.y,
-                mouseController->GetName(), currentStrategy->GetName());
-
             // 更新当前位置
             currentX = point.x;
             currentY = point.y;
 
             // 控制移动速率（60fps = ~16.67ms/frame）
-            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
 
@@ -404,11 +378,6 @@ namespace ActionModule {
 
         // 缓慢移动到新位置
         mouseController->MoveTo(newX, newY);
-
-        // 记录日志
-        MouseActionLogger::GetInstance().LogMouseMove(
-            currentX, currentY, newX, newY,
-            mouseController->GetName(), "TargetLoss");
     }
 
     std::string ActionModule::DetectCurrentScene() {
@@ -450,9 +419,7 @@ namespace ActionModule {
             if (strategy->IsApplicableToScene(scene)) {
                 if (currentStrategy != strategy.get()) {
                     currentStrategy = strategy.get();
-                    MouseActionLogger::GetInstance().LogEvent("STRATEGY",
-                        "Auto-selected strategy: " + currentStrategy->GetName() +
-                        " for scene: " + scene);
+                    std::cout << "Strategy changed to: " << currentStrategy->GetName() << std::endl;
                 }
                 return;
             }
@@ -486,8 +453,8 @@ namespace ActionModule {
         switch (type) {
         case ControllerType::WINDOWS_API:
             return std::make_unique<WindowsAPIController>();
-        case ControllerType::LOGITECH:
-            return std::make_unique<LogitechController>();
+        /*case ControllerType::LOGITECH:
+            return std::make_unique<LogitechController>();*/
         case ControllerType::HARDWARE:
             return std::make_unique<HardwareController>();
         default:
