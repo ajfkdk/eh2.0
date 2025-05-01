@@ -25,6 +25,7 @@
     <ClInclude Include="DetectionResult.h" />
     <ClInclude Include="IFrameCapture.h" />
     <ClInclude Include="inference.h" />
+    <ClInclude Include="PredictionModule.h" />
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="ScreenCaptureWindows.h" />
     <ClInclude Include="YOLODetector.h" />
@@ -35,6 +36,7 @@
     <ClCompile Include="DetectionModule.cpp" />
     <ClCompile Include="inference.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="PredictionModule.cpp" />
     <ClCompile Include="ScreenCaptureWindows.cpp" />
     <ClCompile Include="YOLODetector.cpp" />
   </ItemGroup>
