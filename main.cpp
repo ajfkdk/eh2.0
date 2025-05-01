@@ -27,13 +27,13 @@ int main() {
         // 主循环
         while (CaptureModule::IsRunning() && DetectionModule::IsRunning() && PredictionModule::IsRunning()) {
             // 获取最新的检测结果
-            DetectionResult detectionResult;
+     /*       DetectionResult detectionResult;
             if (DetectionModule::GetLatestDetectionResult(detectionResult)) {
                 if (detectionResult.classId >= 0) {
                     std::cout << "Detected: " << detectionResult.className
                         << " at (" << detectionResult.x << "," << detectionResult.y << ")" << std::endl;
                 }
-            }
+            }*/
 
             // 获取最新的预测结果
             PredictionResult predictionResult;
