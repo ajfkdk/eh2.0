@@ -4,11 +4,28 @@
 #include <chrono>
 #include <memory>
 
+struct Frame {
+    cv::Mat image;
+    std::chrono::high_resolution_clock::time_point timestamp;
 
+    Frame() = default;
+
+    Frame(const cv::Mat& img) : image(img) {
+        timestamp = std::chrono::high_resolution_clock::now();
+    }
+};
+
+// 从CaptureModule导入帧结构体
+namespace CaptureModule {
+  
+
+    bool GetLatestCaptureFrame(Frame& frame);
+    bool WaitForFrame(Frame& frame);
+    bool IsRunning();
+}
 
 // 定义自己的环形缓冲区来存储检测结果
 #include "RingBuffer.h"
-
 
 
 // 检测结果缓冲区大小
@@ -35,14 +52,14 @@ namespace {
 void detectionThreadFunc() {
     std::cout << "Detection thread started" << std::endl;
 
-//    // 设置线程优先级
-//#ifdef _WIN32
-//    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
-//#endif
+    //    // 设置线程优先级
+    //#ifdef _WIN32
+    //    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+    //#endif
 
-    // 创建计时器用于控制帧率
+        // 创建计时器用于控制帧率
     auto lastProcessTime = std::chrono::high_resolution_clock::now();
-    constexpr int targetFrameTimeMs = 1000 / 30; // 30 FPS
+    constexpr int targetFrameTimeMs = 1000 / 60; // 30 FPS
 
     // 预测循环
     while (running.load()) {
@@ -51,13 +68,13 @@ void detectionThreadFunc() {
         auto timeSinceLastProcess = std::chrono::duration_cast<std::chrono::milliseconds>(
             currentTime - lastProcessTime).count();
 
-        if (timeSinceLastProcess < targetFrameTimeMs) {
+       /* if (timeSinceLastProcess < targetFrameTimeMs) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
-        }
+        }*/
 
         // 从采集模块获取帧
-        CaptureModule::Frame frame;
+        Frame frame;
         if (CaptureModule::GetLatestCaptureFrame(frame)) {
             if (!frame.image.empty()) {
                 // 调整图像大小为320x320

@@ -39,7 +39,7 @@ public:
             // 设置模型参数
             DL_INIT_PARAM params;
             params.rectConfidenceThreshold = confidenceThreshold;
-            params.iouThreshold = 0.5;
+            params.iouThreshold = 0.6;
             params.modelPath = modelPath;
             params.imgSize = { INPUT_SIZE, INPUT_SIZE };
             params.cudaEnable = true;

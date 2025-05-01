@@ -19,7 +19,7 @@ int main() {
 
         // 可选：设置调试模式和显示检测框
         DetectionModule::SetDebugMode(true);
-        DetectionModule::SetShowDetections(true);
+        DetectionModule::SetShowDetections(false);
 
         // 主循环
         while (CaptureModule::IsRunning() && DetectionModule::IsRunning()) {
