@@ -19,25 +19,53 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ActionModule.h" />
     <ClInclude Include="CaptureFactory.h" />
     <ClInclude Include="CaptureRegistry.h" />
+    <ClInclude Include="CloseRangeStrategy.h" />
     <ClInclude Include="DetectionModule.h" />
     <ClInclude Include="DetectionResult.h" />
+    <ClInclude Include="HardwareController.h" />
+    <ClInclude Include="HumanizeEngine.h" />
+    <ClInclude Include="IAimingStrategy.h" />
     <ClInclude Include="IFrameCapture.h" />
+    <ClInclude Include="IMouseController.h" />
     <ClInclude Include="inference.h" />
+    <ClInclude Include="LogitechController.h" />
+    <ClInclude Include="LongRangeStrategy.h" />
+    <ClInclude Include="MidRangeStrategy.h" />
+    <ClInclude Include="MouseActionLogger.h" />
+    <ClInclude Include="MovingTargetStrategy.h" />
+    <ClInclude Include="MultiTargetStrategy.h" />
     <ClInclude Include="PredictionModule.h" />
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="ScreenCaptureWindows.h" />
+    <ClInclude Include="TrajectoryGenerator.h" />
+    <ClInclude Include="VelocityProfile.h" />
+    <ClInclude Include="WindowsAPIController.h" />
     <ClInclude Include="YOLODetector.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ActionModule.cpp" />
     <ClCompile Include="CaptureFactory.cpp" />
     <ClCompile Include="CaptureRegistry.cpp" />
+    <ClCompile Include="CloseRangeStrategy.cpp" />
     <ClCompile Include="DetectionModule.cpp" />
+    <ClCompile Include="HardwareController.cpp" />
+    <ClCompile Include="HumanizeEngine.cpp" />
     <ClCompile Include="inference.cpp" />
+    <ClCompile Include="LogitechController.cpp" />
+    <ClCompile Include="LongRangeStrategy.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="MidRangeStrategy.cpp" />
+    <ClCompile Include="MouseActionLogger.cpp" />
+    <ClCompile Include="MovingTargetStrategy.cpp" />
+    <ClCompile Include="MultiTargetStrategy.cpp" />
     <ClCompile Include="PredictionModule.cpp" />
     <ClCompile Include="ScreenCaptureWindows.cpp" />
+    <ClCompile Include="TrajectoryGenerator.cpp" />
+    <ClCompile Include="VelocityProfile.cpp" />
+    <ClCompile Include="WindowsAPIController.cpp" />
     <ClCompile Include="YOLODetector.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
