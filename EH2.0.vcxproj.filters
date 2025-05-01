@@ -19,6 +19,12 @@
     <Filter Include="源文件\CaptureModule">
       <UniqueIdentifier>{747dbba9-7fea-4e1a-a4a0-ebe4e38bb8a1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\DetectionModule">
+      <UniqueIdentifier>{fbd45445-5fc7-444a-b8e3-dc78e0f757bf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\DetectionModule">
+      <UniqueIdentifier>{cfe43279-7fd6-4b2b-90d3-a78722489443}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="IFrameCapture.h">
@@ -36,6 +42,21 @@
     <ClInclude Include="CaptureRegistry.h">
       <Filter>头文件\CaptureModule</Filter>
     </ClInclude>
+    <ClInclude Include="DetectionResult.h">
+      <Filter>头文件\DetectionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="YOLODetector.h">
+      <Filter>头文件\DetectionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="DetectionModule.h">
+      <Filter>头文件\DetectionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="inference.h">
+      <Filter>头文件\DetectionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="CaptureTypes.h">
+      <Filter>头文件\CaptureModule</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CaptureFactory.cpp">
@@ -49,6 +70,15 @@
     </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="YOLODetector.cpp">
+      <Filter>源文件\DetectionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="DetectionModule.cpp">
+      <Filter>源文件\DetectionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="inference.cpp">
+      <Filter>源文件\DetectionModule</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

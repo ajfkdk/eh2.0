@@ -1,52 +1,46 @@
 #include <iostream>
 #include <thread>
 #include "ScreenCaptureWindows.h"
+#include "DetectionModule.h"
 #include <opencv2/opencv.hpp>
 
-// 从ScreenCaptureWindows.cpp中定义的Frame结构体，需要在这里声明
-struct Frame {
-    cv::Mat image;
-    std::chrono::high_resolution_clock::time_point timestamp;
 
-    Frame() = default;
-
-    Frame(const cv::Mat& img) : image(img) {
-        timestamp = std::chrono::high_resolution_clock::now();
-    }
-};
-
-// 用于获取帧的外部函数声明
-namespace CaptureModule {
-    bool WaitForFrame(Frame& frame);
-}
 
 int main() {
     std::thread captureThread;
+    std::thread detectionThread;
 
     try {
         // 初始化采集模块
         captureThread = CaptureModule::Initialize();
 
-        // TODO: 初始化其他模块
-        // ProcessModule::Initialize();
-        // DetectionModule::Initialize();
-        // TrackingModule::Initialize();
-        // RenderModule::Initialize();
+        // 初始化检测模块
+        detectionThread = DetectionModule::Initialize("./123.onnx");
+
+        // 可选：设置调试模式和显示检测框
+        DetectionModule::SetDebugMode(true);
+        DetectionModule::SetShowDetections(true);
 
         // 主循环
-        Frame frame;
-        while (CaptureModule::IsRunning()) {
-            if (CaptureModule::WaitForFrame(frame)) {
-                if (!frame.image.empty()) {
-                    cv::imshow("Captured Frame", frame.image);
-
-                    // 按ESC键退出
-                    if (cv::waitKey(1) == 27) {
-                        CaptureModule::Stop();
-                        break;
-                    }
+        while (CaptureModule::IsRunning() && DetectionModule::IsRunning()) {
+            // 获取最新的检测结果
+            DetectionResult result;
+            if (DetectionModule::GetLatestDetectionResult(result)) {
+                if (result.classId >= 0) {
+                    std::cout << "Detected: " << result.className
+                        << " at (" << result.x << "," << result.y << ")" << std::endl;
                 }
             }
+
+            // 按ESC键退出
+            if (cv::waitKey(1) == 27) {
+                CaptureModule::Stop();
+                DetectionModule::Stop();
+                break;
+            }
+
+            // 控制主循环频率
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }
     catch (const std::exception& e) {
@@ -55,10 +49,15 @@ int main() {
 
     // 清理资源
     CaptureModule::Cleanup();
+    DetectionModule::Cleanup();
 
     // 等待线程结束
     if (captureThread.joinable()) {
         captureThread.join();
+    }
+
+    if (detectionThread.joinable()) {
+        detectionThread.join();
     }
 
     // 释放资源
