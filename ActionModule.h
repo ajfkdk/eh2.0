@@ -21,6 +21,15 @@ struct PredictionResult;
 
 namespace ActionModule {
 
+    // 全局配置结构体
+    struct ActionModuleConfig {
+        int targetFPS = 300;                     // 目标FPS (默认300fps)
+        int humanizationLevel = 50;              // 拟人化级别 (1-100)
+        int targetLossHandlingTime = 200;        // 目标丢失处理时间(ms)
+        int targetLossDetectionTime = 500;       // 目标丢失检测时间(ms)
+        bool enableTargetLossHandling = true;    // 是否启用目标丢失处理
+    };
+
     enum class ControllerType {
         WINDOWS_API,
         LOGITECH,
@@ -71,6 +80,12 @@ namespace ActionModule {
 
         // 设置瞄准策略类型
         static void SetStrategyType(StrategyType type);
+
+        // 设置全局配置
+        static void SetConfig(const ActionModuleConfig& config);
+
+        // 获取当前配置
+        static ActionModuleConfig GetConfig();
 
         // 开火控制
         static void Fire();
@@ -131,6 +146,13 @@ namespace ActionModule {
         int screenWidth;
         int screenHeight;
         int imageSize;
+
+        // 全局配置
+        ActionModuleConfig config;
+
+        // 目标丢失处理相关
+        bool isHandlingTargetLoss;
+        std::chrono::high_resolution_clock::time_point targetLossHandlingStartTime;
 
         // 创建控制器
         std::unique_ptr<IMouseController> CreateController(ControllerType type);

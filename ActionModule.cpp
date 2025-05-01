@@ -37,19 +37,27 @@ namespace ActionModule {
     }
 
     ActionModule::ActionModule()
-        : running(false),                               // 1. 初始化 running 为 false
-        currentStrategy(nullptr),                       // 2. 初始化 currentStrategy 为 nullptr
-        humanizationLevel(50),                          // 3. 初始化 humanizationLevel 为 50
-        currentControllerType(ControllerType::WINDOWS_API),       // 4. 初始化 currentControllerType
-        currentStrategyType(StrategyType::AUTO_DETECT),           // 5. 初始化 currentStrategyType
-        firing(false),                                  // 6. 初始化 firing 为 false
-        screenWidth(1920),                              // 7. 初始化 screenWidth 为 1920
-        screenHeight(1080),                             // 8. 初始化 screenHeight 为 1080
-        imageSize(320)                                  // 9. 初始化 imageSize 为 320
-    {
+        : running(false),
+        currentStrategy(nullptr),
+        humanizationLevel(50),
+        currentControllerType(ControllerType::WINDOWS_API),
+        currentStrategyType(StrategyType::AUTO_DETECT),
+        firing(false),
+        screenWidth(1920),
+        screenHeight(1080),
+        imageSize(320),
+        isHandlingTargetLoss(false) {
+
+        // 初始化配置
+        config.targetFPS = 300;
+        config.humanizationLevel = 50;
+        config.targetLossHandlingTime = 200;
+        config.targetLossDetectionTime = 500;
+        config.enableTargetLossHandling = true;
+
         // 获取屏幕尺寸
-        screenWidth = GetSystemMetrics(SM_CXSCREEN);    // 10. 获取当前屏幕宽度
-        screenHeight = GetSystemMetrics(SM_CYSCREEN);   // 11. 获取当前屏幕高度
+        screenWidth = GetSystemMetrics(SM_CXSCREEN);
+        screenHeight = GetSystemMetrics(SM_CYSCREEN);
     }
 
     ActionModule::~ActionModule() {
@@ -57,8 +65,10 @@ namespace ActionModule {
         Cleanup();
     }
 
-    //初始化动作模块，接收控制器类型、策略类型和拟人化强度
-    std::thread ActionModule::Initialize(ControllerType controllerType, StrategyType strategyType,int humanizationLevel) {
+    std::thread ActionModule::Initialize(
+        ControllerType controllerType,
+        StrategyType strategyType,
+        int humanizationLevel) {
 
         auto& moduleInstance = GetInstance();
 
@@ -67,6 +77,10 @@ namespace ActionModule {
         moduleInstance.currentStrategyType = strategyType;
         moduleInstance.SetHumanizationLevel(humanizationLevel);
 
+        // 更新配置中的拟人化级别
+        moduleInstance.config.humanizationLevel = humanizationLevel;
+
+       
 
         // 创建控制器
         moduleInstance.mouseController = moduleInstance.CreateController(controllerType);
@@ -141,6 +155,7 @@ namespace ActionModule {
         if (instance) {
             level = std::clamp(level, 1, 100);
             instance->humanizationLevel = level;
+            instance->config.humanizationLevel = level;
 
             if (instance->humanizeEngine) {
                 instance->humanizeEngine->SetHumanizationLevel(level);
@@ -179,7 +194,7 @@ namespace ActionModule {
                 //打印控制器类型
                 std::string controllerName = instance->mouseController->GetName();
                 std::cout << "Mouse controller initialized: " << controllerName << std::endl;
-                
+
             }
             else {
                 std::cerr << "Failed to create mouse controller of type: " << static_cast<int>(type) << std::endl;
@@ -203,10 +218,36 @@ namespace ActionModule {
                 if (index < instance->strategies.size()) {
                     instance->currentStrategy = instance->strategies[index].get();
 
-                   std::cout << "Strategy set to: " << instance->currentStrategy->GetName() << std::endl;
+                    std::cout << "Strategy set to: " << instance->currentStrategy->GetName() << std::endl;
                 }
             }
         }
+    }
+
+    void ActionModule::SetConfig(const ActionModuleConfig& config) {
+        std::lock_guard<std::mutex> lock(instanceMutex);
+
+        if (instance) {
+            instance->config = config;
+            instance->humanizationLevel = config.humanizationLevel;
+
+            if (instance->humanizeEngine) {
+                instance->humanizeEngine->SetHumanizationLevel(config.humanizationLevel);
+            }
+
+            std::cout << "ActionModule configuration updated" << std::endl;
+
+        }
+    }
+
+    ActionModuleConfig ActionModule::GetConfig() {
+        std::lock_guard<std::mutex> lock(instanceMutex);
+
+        if (instance) {
+            return instance->config;
+        }
+
+        return ActionModuleConfig(); // 返回默认配置
     }
 
     void ActionModule::Fire() {
@@ -228,7 +269,7 @@ namespace ActionModule {
             instance->mouseController->LeftDown();
 
             auto [x, y] = instance->GetCurrentMousePosition();
-         
+
         }
     }
 
@@ -257,13 +298,15 @@ namespace ActionModule {
         auto lastProcessTime = std::chrono::high_resolution_clock::now();
 
         while (running) {
-            // 目标帧率控制 
+            // 目标帧率控制
             auto now = std::chrono::high_resolution_clock::now();
             // 计算每帧经过的时间
             auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastProcessTime).count();
 
-            // 控制帧率
-            if (elapsed < 10) {
+            // 根据目标FPS计算每帧时间（毫秒）
+            double targetFrameTime = 1000.0 / config.targetFPS;
+
+            if (elapsed < targetFrameTime) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 continue;
             }
@@ -287,7 +330,7 @@ namespace ActionModule {
             }
         }
 
-        
+
     }
 
     void ActionModule::ProcessPrediction(const PredictionResult& prediction) {
@@ -311,9 +354,25 @@ namespace ActionModule {
             auto elapsedSinceLastTarget = std::chrono::duration_cast<std::chrono::milliseconds>(
                 now - lastTargetTime).count();
 
-            // 如果丢失超过一定时间（例如500ms），则执行目标丢失处理
-            if (elapsedSinceLastTarget > 500) {
-                HandleTargetLoss();
+            // 如果丢失超过配置的检测时间，且启用了目标丢失处理
+            if (elapsedSinceLastTarget > config.targetLossDetectionTime && config.enableTargetLossHandling) {
+                // 如果尚未开始处理目标丢失
+                if (!isHandlingTargetLoss) {
+                    isHandlingTargetLoss = true;
+                    targetLossHandlingStartTime = now;
+                    HandleTargetLoss();
+                }
+                else {
+                    // 已经在处理目标丢失，检查是否超过了处理时间
+                    auto elapsedHandlingTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        now - targetLossHandlingStartTime).count();
+
+                    // 只在配置的目标丢失处理时间内执行HandleTargetLoss
+                    if (elapsedHandlingTime < config.targetLossHandlingTime) {
+                        HandleTargetLoss();
+                    }
+                    // 超过处理时间后不再执行任何动作，等待目标重新出现
+                }
             }
         }
     }
@@ -352,8 +411,9 @@ namespace ActionModule {
             currentX = point.x;
             currentY = point.y;
 
-            // 控制移动速率（60fps = ~16.67ms/frame）
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            // 根据目标FPS控制移动速率
+            double frameTime = 1000.0 / config.targetFPS;
+            std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(frameTime)));
         }
     }
 
@@ -453,8 +513,8 @@ namespace ActionModule {
         switch (type) {
         case ControllerType::WINDOWS_API:
             return std::make_unique<WindowsAPIController>();
-        /*case ControllerType::LOGITECH:
-            return std::make_unique<LogitechController>();*/
+            /*case ControllerType::LOGITECH:
+                return std::make_unique<LogitechController>();*/
         case ControllerType::HARDWARE:
             return std::make_unique<HardwareController>();
         default:
