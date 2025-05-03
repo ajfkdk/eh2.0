@@ -25,6 +25,12 @@
     <Filter Include="源文件\DetectionModule">
       <UniqueIdentifier>{cfe43279-7fd6-4b2b-90d3-a78722489443}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\ActionModule">
+      <UniqueIdentifier>{d235cbad-b7a4-43bd-8413-d2858328459b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\ActionModule">
+      <UniqueIdentifier>{a2de304e-2416-43af-a833-47a27ef9effe}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="IFrameCapture.h">
@@ -54,23 +60,23 @@
     <ClInclude Include="inference.h">
       <Filter>头文件\DetectionModule</Filter>
     </ClInclude>
-    <ClInclude Include="ActionModule.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="HumanLikeMovement.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="MouseController.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="PredictionModule.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="WindowsMouseController.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="UdpStreamCapture.h">
       <Filter>头文件\CaptureModule</Filter>
+    </ClInclude>
+    <ClInclude Include="ActionModule.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="HumanLikeMovement.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="MouseController.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="PredictionModule.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsMouseController.h">
+      <Filter>头文件\ActionModule</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -95,20 +101,20 @@
     <ClCompile Include="inference.cpp">
       <Filter>源文件\DetectionModule</Filter>
     </ClCompile>
-    <ClCompile Include="ActionModule.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="HumanLikeMovement.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="PredictionModule.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="WindowsMouseController.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="UdpStreamCapture.cpp">
       <Filter>源文件\CaptureModule</Filter>
+    </ClCompile>
+    <ClCompile Include="ActionModule.cpp">
+      <Filter>源文件\ActionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="HumanLikeMovement.cpp">
+      <Filter>源文件\ActionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="PredictionModule.cpp">
+      <Filter>源文件\ActionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsMouseController.cpp">
+      <Filter>源文件\ActionModule</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
