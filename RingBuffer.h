@@ -73,6 +73,21 @@ public:
         return true;
     }
 
+    bool readLatest(T& item) {
+        std::lock_guard<std::mutex> lock(mutex);
+        if (count.load() == 0) return false;
+
+        // 读取最新写入的数据
+        size_t latest = (writeIndex == 0) ? Size - 1 : writeIndex - 1;
+        item = buffer[latest];
+
+        // 更新计数器(可选，取决于你是否想清空缓冲区)
+        count.store(0);
+        readIndex.store(writeIndex.load());
+
+        return true;
+    }
+
     // 关闭缓冲区
     void close() {
         closed.store(true);

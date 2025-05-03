@@ -153,7 +153,7 @@ namespace PredictionModule {
         std::cout << "Prediction module worker started" << std::endl;
 
         // 计算循环间隔时间 (目标60FPS+)
-        const auto loopInterval = std::chrono::microseconds(16000); // 约为16.7ms，确保>60FPS
+        const auto loopInterval = std::chrono::microseconds(20); // 约为16.7ms，确保>60FPS
 
         while (g_running) {
             auto loopStart = std::chrono::high_resolution_clock::now();
