@@ -10,6 +10,7 @@ enum class CaptureType {
     WINDOWS_SCREEN,
     DIRECTX,
     OPENCV_CAMERA,
+    UDP_STREAM,  // 新增UDP流类型
     // 可扩展更多类型
 };
 

@@ -3,6 +3,7 @@
 #include "CaptureFactory.h"
 #include "CaptureRegistry.h"
 #include <iostream>
+#include "UdpStreamCapture.h"
 
 // ========== 全局变量和结构体定义 ==========
 
@@ -269,8 +270,19 @@ void registerCustomCaptures() {
         }
     );
 
+    // 注册UDP流采集
+    CaptureRegistry::registerImplementation("UdpStream",
+        [](const CaptureConfig& config) -> std::shared_ptr<IFrameCapture> {
+            auto capture = std::make_shared<UdpStreamCapture>();
+            capture->configure(config);
+            capture->initialize();
+            return capture;
+        }
+    );
+
     // 可以在这里注册其他采集实现
 }
+
 
 // 采集线程函数
 void captureThreadFunc(std::shared_ptr<IFrameCapture> capturer) {
@@ -374,7 +386,8 @@ namespace CaptureModule {
         config.captureCenter = true;
 
         // 创建采集器
-        capturer = CaptureFactory::createCapture(CaptureType::WINDOWS_SCREEN, config);
+        //capturer = CaptureFactory::createCapture(CaptureType::WINDOWS_SCREEN, config);
+        auto capture = CaptureFactory::createCapture(CaptureType::UDP_STREAM, config);
 
         if (!capturer) {
             throw std::runtime_error("Failed to create capturer");

@@ -54,7 +54,22 @@
     <ClInclude Include="inference.h">
       <Filter>头文件\DetectionModule</Filter>
     </ClInclude>
-    <ClInclude Include="CaptureTypes.h">
+    <ClInclude Include="ActionModule.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="HumanLikeMovement.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="MouseController.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="PredictionModule.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsMouseController.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="UdpStreamCapture.h">
       <Filter>头文件\CaptureModule</Filter>
     </ClInclude>
   </ItemGroup>
@@ -79,6 +94,21 @@
     </ClCompile>
     <ClCompile Include="inference.cpp">
       <Filter>源文件\DetectionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="ActionModule.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="HumanLikeMovement.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="PredictionModule.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsMouseController.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="UdpStreamCapture.cpp">
+      <Filter>源文件\CaptureModule</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
