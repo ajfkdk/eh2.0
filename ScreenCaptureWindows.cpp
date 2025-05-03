@@ -42,7 +42,8 @@ namespace {
 
 // ========== ScreenCaptureWindows类实现 ==========
 
-ScreenCaptureWindows::ScreenCaptureWindows() : hdesktop(NULL), hdc(NULL) {
+ScreenCaptureWindows::ScreenCaptureWindows() : d3dDevice(nullptr), d3dContext(nullptr),
+dxgiOutputDuplication(nullptr), dxgiOutput1(nullptr), dxgiAdapter(nullptr), dxgiAdapter1(nullptr) {
     config.width = 320;
     config.height = 320;
     config.captureCenter = true;
@@ -52,24 +53,122 @@ ScreenCaptureWindows::~ScreenCaptureWindows() {
     release();
 }
 
+bool ScreenCaptureWindows::initializeDXGI() {
+    // 创建D3D设备
+    D3D_FEATURE_LEVEL featureLevel;
+    HRESULT hr = D3D11CreateDevice(
+        nullptr,
+        D3D_DRIVER_TYPE_HARDWARE,
+        nullptr,
+        0,
+        nullptr,
+        0,
+        D3D11_SDK_VERSION,
+        &d3dDevice,
+        &featureLevel,
+        &d3dContext
+    );
+
+    if (FAILED(hr)) {
+        lastError = "Failed to create D3D11 device: " + std::to_string(hr);
+        if (errorHandler) errorHandler(lastError, -1);
+        return false;
+    }
+
+    // 获取DXGI设备
+    IDXGIDevice* dxgiDevice = nullptr;
+    hr = d3dDevice->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDevice));
+    if (FAILED(hr)) {
+        lastError = "Failed to get DXGI device: " + std::to_string(hr);
+        if (errorHandler) errorHandler(lastError, -2);
+        releaseDXGI();
+        return false;
+    }
+
+    // 获取DXGI适配器
+    hr = dxgiDevice->GetAdapter(&dxgiAdapter);
+    dxgiDevice->Release();
+    if (FAILED(hr)) {
+        lastError = "Failed to get DXGI adapter: " + std::to_string(hr);
+        if (errorHandler) errorHandler(lastError, -3);
+        releaseDXGI();
+        return false;
+    }
+
+    // 可选：获取IDXGIAdapter1接口
+    hr = dxgiAdapter->QueryInterface(__uuidof(IDXGIAdapter1), reinterpret_cast<void**>(&dxgiAdapter1));
+    if (FAILED(hr)) {
+        // 这不是严重错误，我们可能不需要Adapter1的功能
+        if (debugMode.load()) {
+            std::cout << "Warning: Failed to get IDXGIAdapter1 interface: " << hr << std::endl;
+        }
+    }
+
+    // 获取主显示器输出
+    IDXGIOutput* dxgiOutput = nullptr;
+    hr = dxgiAdapter->EnumOutputs(0, &dxgiOutput);
+    if (FAILED(hr)) {
+        lastError = "Failed to get DXGI output: " + std::to_string(hr);
+        if (errorHandler) errorHandler(lastError, -4);
+        releaseDXGI();
+        return false;
+    }
+
+    // 获取DXGI Output1接口
+    hr = dxgiOutput->QueryInterface(__uuidof(IDXGIOutput1), reinterpret_cast<void**>(&dxgiOutput1));
+    dxgiOutput->Release();
+    if (FAILED(hr)) {
+        lastError = "Failed to get DXGI Output1 interface: " + std::to_string(hr);
+        if (errorHandler) errorHandler(lastError, -5);
+        releaseDXGI();
+        return false;
+    }
+
+    // 获取桌面复制接口
+    hr = dxgiOutput1->DuplicateOutput(d3dDevice, &dxgiOutputDuplication);
+    if (FAILED(hr)) {
+        lastError = "Failed to duplicate output: " + std::to_string(hr);
+        if (errorHandler) errorHandler(lastError, -6);
+        releaseDXGI();
+        return false;
+    }
+
+    return true;
+}
+
+void ScreenCaptureWindows::releaseDXGI() {
+    if (dxgiOutputDuplication) {
+        dxgiOutputDuplication->Release();
+        dxgiOutputDuplication = nullptr;
+    }
+    if (dxgiOutput1) {
+        dxgiOutput1->Release();
+        dxgiOutput1 = nullptr;
+    }
+    if (dxgiAdapter1) {
+        dxgiAdapter1->Release();
+        dxgiAdapter1 = nullptr;
+    }
+    if (dxgiAdapter) {
+        dxgiAdapter->Release();
+        dxgiAdapter = nullptr;
+    }
+    if (d3dContext) {
+        d3dContext->Release();
+        d3dContext = nullptr;
+    }
+    if (d3dDevice) {
+        d3dDevice->Release();
+        d3dDevice = nullptr;
+    }
+}
+
 bool ScreenCaptureWindows::initialize() {
     if (initialized.load()) {
         return true;
     }
 
-    hdesktop = GetDC(NULL);
-    if (!hdesktop) {
-        lastError = "Failed to get desktop DC";
-        if (errorHandler) errorHandler(lastError, -1);
-        return false;
-    }
-
-    hdc = CreateCompatibleDC(hdesktop);
-    if (!hdc) {
-        ReleaseDC(NULL, hdesktop);
-        hdesktop = NULL;
-        lastError = "Failed to create compatible DC";
-        if (errorHandler) errorHandler(lastError, -2);
+    if (!initializeDXGI()) {
         return false;
     }
 
@@ -120,16 +219,7 @@ bool ScreenCaptureWindows::release() {
     }
 
     stop();
-
-    if (hdc) {
-        DeleteDC(hdc);
-        hdc = NULL;
-    }
-
-    if (hdesktop) {
-        ReleaseDC(NULL, hdesktop);
-        hdesktop = NULL;
-    }
+    releaseDXGI();
 
     initialized.store(false);
     status.store(CaptureStatus::CAP_STOPPED);
@@ -166,22 +256,6 @@ std::string ScreenCaptureWindows::getLastError() const {
     return lastError;
 }
 
-BITMAPINFOHEADER ScreenCaptureWindows::createBitmapHeader(int width, int height) {
-    BITMAPINFOHEADER bi;
-    bi.biSize = sizeof(BITMAPINFOHEADER);
-    bi.biWidth = width;
-    bi.biHeight = -height; // 负高度表示自上而下位图
-    bi.biPlanes = 1;
-    bi.biBitCount = 32;
-    bi.biCompression = BI_RGB;
-    bi.biSizeImage = 0;
-    bi.biXPelsPerMeter = 0;
-    bi.biYPelsPerMeter = 0;
-    bi.biClrUsed = 0;
-    bi.biClrImportant = 0;
-    return bi;
-}
-
 RECT ScreenCaptureWindows::getCenterRegion() {
     int screenWidth = GetSystemMetrics(SM_CXSCREEN);
     int screenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -200,64 +274,136 @@ cv::Mat ScreenCaptureWindows::captureFrame() {
         return cv::Mat();
     }
 
-    int left, top, width, height;
-
-    if (config.captureCenter) {
-        RECT rect = getCenterRegion();
-        left = rect.left;
-        top = rect.top;
-        width = config.width;
-        height = config.height;
-    }
-    else {
-        left = config.left;
-        top = config.top;
-        width = config.right - config.left;
-        height = config.bottom - config.top;
-    }
-
     try {
-        HBITMAP hbmp = CreateCompatibleBitmap(hdesktop, width, height);
-        if (!hbmp) {
-            lastError = "Failed to create compatible bitmap";
-            if (errorHandler) errorHandler(lastError, -3);
+        // 获取下一帧
+        DXGI_OUTDUPL_FRAME_INFO frameInfo;
+        IDXGIResource* desktopResource = nullptr;
+        HRESULT hr = dxgiOutputDuplication->AcquireNextFrame(100, &frameInfo, &desktopResource);
+
+        // 如果超时或失败，返回空帧
+        if (hr == DXGI_ERROR_WAIT_TIMEOUT) {
+            return cv::Mat();
+        }
+        else if (FAILED(hr)) {
+            lastError = "Failed to acquire next frame: " + std::to_string(hr);
+            if (errorHandler) errorHandler(lastError, -7);
             return cv::Mat();
         }
 
-        HGDIOBJ oldObject = SelectObject(hdc, hbmp);
-        BitBlt(hdc, 0, 0, width, height, hdesktop, left, top, SRCCOPY);
+        // 获取桌面表面
+        ID3D11Texture2D* desktopTexture = nullptr;
+        hr = desktopResource->QueryInterface(__uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&desktopTexture));
+        desktopResource->Release();
 
-        BITMAPINFO bmi = { 0 };
-        bmi.bmiHeader = createBitmapHeader(width, height);
+        if (FAILED(hr)) {
+            lastError = "Failed to get desktop texture: " + std::to_string(hr);
+            if (errorHandler) errorHandler(lastError, -8);
+            dxgiOutputDuplication->ReleaseFrame();
+            return cv::Mat();
+        }
 
-        std::vector<BYTE> buffer(width * height * 4);
-        GetDIBits(hdc, hbmp, 0, height, buffer.data(), &bmi, DIB_RGB_COLORS);
+        // 获取桌面纹理描述
+        D3D11_TEXTURE2D_DESC desc;
+        desktopTexture->GetDesc(&desc);
 
-        cv::Mat image(height, width, CV_8UC4, buffer.data());
+        // 创建可以映射的纹理
+        D3D11_TEXTURE2D_DESC copydesc;
+        copydesc.Width = desc.Width;
+        copydesc.Height = desc.Height;
+        copydesc.MipLevels = 1;
+        copydesc.ArraySize = 1;
+        copydesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        copydesc.SampleDesc.Count = 1;
+        copydesc.SampleDesc.Quality = 0;
+        copydesc.Usage = D3D11_USAGE_STAGING;
+        copydesc.BindFlags = 0;
+        copydesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        copydesc.MiscFlags = 0;
+
+        ID3D11Texture2D* copyTexture = nullptr;
+        hr = d3dDevice->CreateTexture2D(&copydesc, nullptr, &copyTexture);
+        if (FAILED(hr)) {
+            lastError = "Failed to create copy texture: " + std::to_string(hr);
+            if (errorHandler) errorHandler(lastError, -9);
+            desktopTexture->Release();
+            dxgiOutputDuplication->ReleaseFrame();
+            return cv::Mat();
+        }
+
+        // 复制纹理
+        d3dContext->CopyResource(copyTexture, desktopTexture);
+        desktopTexture->Release();
+
+        // 锁定纹理以供读取
+        D3D11_MAPPED_SUBRESOURCE mappedSubresource;
+        hr = d3dContext->Map(copyTexture, 0, D3D11_MAP_READ, 0, &mappedSubresource);
+        if (FAILED(hr)) {
+            lastError = "Failed to map texture: " + std::to_string(hr);
+            if (errorHandler) errorHandler(lastError, -10);
+            copyTexture->Release();
+            dxgiOutputDuplication->ReleaseFrame();
+            return cv::Mat();
+        }
+
+        // 计算捕获区域
+        int left, top, width, height;
+        if (config.captureCenter) {
+            RECT rect = getCenterRegion();
+            left = rect.left;
+            top = rect.top;
+            width = config.width;
+            height = config.height;
+        }
+        else {
+            left = config.left;
+            top = config.top;
+            width = config.right - config.left;
+            height = config.bottom - config.top;
+        }
+
+        // 确保坐标在屏幕范围内
+        left = max(0, min(left, static_cast<int>(desc.Width - 1)));
+        top = max(0, min(top, static_cast<int>(desc.Height - 1)));
+        width = min(width, static_cast<int>(desc.Width - left));
+        height = min(height, static_cast<int>(desc.Height - top));
+
+        // 创建OpenCV图像
+        cv::Mat fullScreenImage(desc.Height, desc.Width, CV_8UC4, mappedSubresource.pData, mappedSubresource.RowPitch);
         cv::Mat result;
-        cv::cvtColor(image, result, cv::COLOR_BGRA2BGR);
 
-        SelectObject(hdc, oldObject);
-        DeleteObject(hbmp);
+        // 提取所需区域
+        cv::Rect regionRect(left, top, width, height);
+        cv::Mat regionImage = fullScreenImage(regionRect).clone();
+
+        // 转换颜色格式
+        cv::cvtColor(regionImage, result, cv::COLOR_BGRA2BGR);
+
+        // 解锁纹理
+        d3dContext->Unmap(copyTexture, 0);
+        copyTexture->Release();
+
+        // 释放帧
+        dxgiOutputDuplication->ReleaseFrame();
 
         return result;
     }
     catch (const std::exception& e) {
         lastError = std::string("Exception in captureFrame: ") + e.what();
-        if (errorHandler) errorHandler(lastError, -4);
+        if (errorHandler) errorHandler(lastError, -11);
         status.store(CaptureStatus::CAP_ERROR);
+        dxgiOutputDuplication->ReleaseFrame();
         return cv::Mat();
     }
 }
 
-// ========== 模块函数实现 ==========
+// ========== 错误处理回调 ==========
 
-// 错误处理回调
 void handleCaptureError(const std::string& message, int code) {
     std::cerr << "Capture error [" << code << "]: " << message << std::endl;
 }
 
-// 注册自定义采集实现
+// ========== 注册自定义采集实现 ==========
+
 void registerCustomCaptures() {
     // 注册Windows屏幕采集
     CaptureRegistry::registerImplementation("WindowsScreen",
@@ -272,7 +418,8 @@ void registerCustomCaptures() {
     // 可以在这里注册其他采集实现
 }
 
-// 采集线程函数
+// ========== 采集线程函数 ==========
+
 void captureThreadFunc(std::shared_ptr<IFrameCapture> capturer) {
     std::cout << "Capture thread started" << std::endl;
 

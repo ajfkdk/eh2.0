@@ -6,6 +6,11 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include <d3d11.h>
+#include <dxgi1_2.h>
+
+#pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "dxgi.lib")
 
 // 提供初始化接口
 namespace CaptureModule {
@@ -35,12 +40,19 @@ private:
     std::string lastError;
     ErrorCallback errorHandler;
 
-    HDC hdesktop;
-    HDC hdc;
+    // DXGI相关成员
+    ID3D11Device* d3dDevice = nullptr;
+    ID3D11DeviceContext* d3dContext = nullptr;
+    IDXGIOutputDuplication* dxgiOutputDuplication = nullptr;
+    IDXGIOutput1* dxgiOutput1 = nullptr;
+    IDXGIAdapter* dxgiAdapter = nullptr;  // 基本适配器接口
+    IDXGIAdapter1* dxgiAdapter1 = nullptr; // 增强适配器接口
+
     std::atomic<bool> initialized{ false };
 
-    BITMAPINFOHEADER createBitmapHeader(int width, int height);
     RECT getCenterRegion();
+    bool initializeDXGI();
+    void releaseDXGI();
 
 public:
     ScreenCaptureWindows();
