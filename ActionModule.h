@@ -20,6 +20,9 @@ private:
     static std::atomic<bool> fireEnabled;
     static std::mutex logMutex;
 
+    // 瞄准阈值常量 - 当鼠标与目标距离小于此值时视为已瞄准
+    static const int AIM_THRESHOLD = 20;
+
     // 当前和目标位置
     static int currentX, currentY;
     static int targetX, targetY;
@@ -79,4 +82,4 @@ public:
     static bool IsAutoFireEnabled();
 };
 
-#endif // ACTION_MODULE_H#pragma once
+#endif // ACTION_MODULE_H

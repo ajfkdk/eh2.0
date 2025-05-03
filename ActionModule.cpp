@@ -205,16 +205,16 @@ void ActionModule::ProcessLoop() {
 
             // 图像中心的左上角偏移到屏幕中心的图像左上角
             float offsetX = screenCenterX - 320.0f / 2;
-            float offsetY = screenCenterX - 320.0f / 2;
+            float offsetY = screenCenterY - 320.0f / 2;
 
             // 计算目标坐标
-            targetX = static_cast<int>(offsetX+ prediction.x);
-            targetY = static_cast<int>(offsetY-prediction.y);
+            targetX = static_cast<int>(offsetX + prediction.x);
+            targetY = static_cast<int>(offsetY + prediction.y);
 
 
-             std::cout << "Screen resolution: " << screenWidth << "x" << screenHeight << std::endl;
-             std::cout << "Raw prediction: (" << prediction.x << ", " << prediction.y << ")" << std::endl;
-             std::cout << "Converted target: (" << targetX << ", " << targetY << ")" << std::endl;
+            std::cout << "Screen resolution: " << screenWidth << "x" << screenHeight << std::endl;
+            std::cout << "Raw prediction: (" << prediction.x << ", " << prediction.y << ")" << std::endl;
+            std::cout << "Converted target: (" << targetX << ", " << targetY << ")" << std::endl;
 
             // 日志记录新的坐标转换方法
             std::stringstream ssCoord;
@@ -225,8 +225,22 @@ void ActionModule::ProcessLoop() {
             float distance = std::sqrt(
                 std::pow(targetX - currentX, 2) + std::pow(targetY - currentY, 2));
 
+            // 新增: 检查鼠标是否已经足够靠近目标
+            if (distance < AIM_THRESHOLD) {
+                // 如果距离小于阈值，认为已经瞄准了目标
+                std::stringstream ss;
+                ss << "Target already aimed. Distance: " << distance << " (below threshold " << AIM_THRESHOLD << ")";
+                LogMouseMovement(ss.str());
+
+                // 控制鼠标开火
+                ControlMouseFire(true);
+
+                // 不需要生成新的路径
+                currentPath.clear();
+                pathIndex = 0;
+            }
             // 如果距离足够大，生成新的拟人化路径
-            if (distance > 5 || currentPath.empty() || pathIndex >= currentPath.size()) {
+            else if (distance > 5 || currentPath.empty() || pathIndex >= currentPath.size()) {
                 int human = humanizationFactor.load();
                 currentPath = HumanLikeMovement::GenerateBezierPath(
                     currentX, currentY, targetX, targetY, human,
@@ -256,7 +270,7 @@ void ActionModule::ProcessLoop() {
 
                 std::stringstream ss;
                 ss << "Moving to: (" << jitteredPoint.first << ", " << jitteredPoint.second << ")";
-                std::cout<<ss.str()<<std::endl;
+                std::cout << ss.str() << std::endl;
                 LogMouseMovement(ss.str());
 
                 pathIndex++;
