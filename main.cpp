@@ -26,11 +26,14 @@ int main() {
         actionThread = ActionModule::Initialize(50);
 
         // 可选：启用自动开火
-        ActionModule::EnableAutoFire(true);
+        ActionModule::EnableAutoFire(false);
+
+        // 可选：采集模块-->设置调试模式和显示检测框
+        CaptureModule::SetCaptureDebug(true);
 
         // 可选：设置调试模式和显示检测框
-        DetectionModule::SetDebugMode(true);
-        DetectionModule::SetShowDetections(false);
+        DetectionModule::SetDebugMode(false);
+        DetectionModule::SetShowDetections(true);
 
         // 主循环
         while (CaptureModule::IsRunning() &&

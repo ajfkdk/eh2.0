@@ -20,6 +20,12 @@ namespace CaptureModule {
 
     // 停止采集
     void Stop();
+
+    // 设置调试模式
+    void SetDebugMode(bool enabled);
+
+    // 设置捕获调试模式，用于显示采集到的屏幕信息
+    void SetCaptureDebug(bool enabled);
 }
 
 class ScreenCaptureWindows : public IFrameCapture {

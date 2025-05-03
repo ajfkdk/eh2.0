@@ -29,6 +29,7 @@ namespace {
     // 控制标志
     std::atomic<bool> running{ false };
     std::atomic<bool> debugMode{ false };
+    std::atomic<bool> showCaptureDebug{ false }; // 新增：控制是否显示捕获的屏幕信息
 
     // 采集器实例
     std::shared_ptr<IFrameCapture> capturer;
@@ -292,10 +293,24 @@ void captureThreadFunc(std::shared_ptr<IFrameCapture> capturer) {
                 std::chrono::duration<double, std::milli> elapsed = endTime - startTime;
                 std::cout << "Capture time: " << elapsed.count() << " ms" << std::endl;
             }
+
+            // 如果开启了屏幕捕获调试，显示采集到的屏幕信息
+            if (showCaptureDebug.load()) {
+               
+                // 使用OpenCV显示捕获的图像
+                cv::namedWindow("Screen Capture Debug", cv::WINDOW_AUTOSIZE);
+                cv::imshow("Screen Capture Debug", frame);
+                cv::waitKey(1); // 必要的，保持窗口更新
+            }
         }
 
         // 控制帧率
         std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60fps
+    }
+
+    // 如果显示窗口打开，关闭它
+    if (showCaptureDebug.load()) {
+        cv::destroyWindow("Screen Capture Debug");
     }
 
     // 停止采集
@@ -329,8 +344,8 @@ namespace CaptureModule {
 
         // 创建采集配置
         CaptureConfig config;
-        config.width = 640;
-        config.height = 480;
+        config.width = 320;
+        config.height = 320;
         config.captureCenter = true;
 
         // 创建采集器
@@ -375,5 +390,10 @@ namespace CaptureModule {
     // 设置调试模式
     void SetDebugMode(bool enabled) {
         debugMode.store(enabled);
+    }
+
+    // 设置屏幕捕获调试模式
+    void SetCaptureDebug(bool enabled) {
+        showCaptureDebug.store(enabled);
     }
 }
