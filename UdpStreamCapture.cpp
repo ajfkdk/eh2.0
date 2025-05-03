@@ -15,35 +15,20 @@ UdpStreamCapture::~UdpStreamCapture() {
     release();
 }
 
-// UdpStreamCapture.cpp的initialize方法中
 bool UdpStreamCapture::initialize() {
     if (initialized.load()) {
         return true;
     }
 
     try {
-        std::cout << "正在尝试打开UDP流: " << udpAddress << std::endl;
-
         // 使用FFMPEG后端打开UDP流
         cap.open(udpAddress, cv::CAP_FFMPEG);
 
         if (!cap.isOpened()) {
-            std::cout << "无法打开UDP流，尝试替代地址格式..." << std::endl;
-
-            // 尝试替代地址格式
-            std::string altAddress = "udp://:8848";
-            std::cout << "尝试: " << altAddress << std::endl;
-            cap.open(altAddress, cv::CAP_FFMPEG);
-
-            if (!cap.isOpened()) {
-                lastError = "Failed to open UDP stream at " + udpAddress;
-                if (errorHandler) errorHandler(lastError, -1);
-                std::cout << "所有尝试均失败" << std::endl;
-                return false;
-            }
+            lastError = "Failed to open UDP stream at " + udpAddress;
+            if (errorHandler) errorHandler(lastError, -1);
+            return false;
         }
-
-        std::cout << "成功打开UDP流" << std::endl;
 
         // 设置捕获属性(如果需要)
         if (config.width > 0) cap.set(cv::CAP_PROP_FRAME_WIDTH, config.width);
@@ -57,10 +42,10 @@ bool UdpStreamCapture::initialize() {
     catch (const std::exception& e) {
         lastError = std::string("Exception in initialize: ") + e.what();
         if (errorHandler) errorHandler(lastError, -2);
-        std::cout << "初始化时发生异常: " << e.what() << std::endl;
         return false;
     }
 }
+
 bool UdpStreamCapture::start() {
     if (!initialized.load() && !initialize()) {
         return false;
