@@ -76,21 +76,16 @@ std::vector<std::pair<float, float>> HumanLikeMovement::ApplySpeedProfile(
 
 std::pair<float, float> HumanLikeMovement::AddHumanJitter(
     float x, float y, float distance, int humanizationFactor) {
-
-    // 根据距离和拟人因子计算抖动幅度
-    float maxJitter = std::min(3.0f, distance * 0.03f) * (humanizationFactor / 50.0f);
-
-    // 在拟人因子低时减少抖动
-    if (humanizationFactor < 30) {
-        maxJitter *= humanizationFactor / 30.0f;
+    // 确保 humanizationFactor 非负
+    float hFactor = std::max(0.0f, static_cast<float>(humanizationFactor));
+    // 计算 maxJitter 并设置最小值
+    float maxJitter = std::max(0.0001f, std::min(3.0f, distance * 0.03f) * (hFactor / 50.0f));
+    if (hFactor < 30) {
+        maxJitter = std::max(0.0001f, maxJitter * (hFactor / 30.0f));
     }
-
-    // 生成随机抖动
-    std::normal_distribution<float> jitterDist(0.0f, maxJitter / 3.0f); // 3-sigma范围
-
+    std::normal_distribution<float> jitterDist(0.0f, maxJitter / 3.0f);
     float jitterX = jitterDist(rng);
     float jitterY = jitterDist(rng);
-
     return { x + jitterX, y + jitterY };
 }
 
@@ -132,37 +127,25 @@ int HumanLikeMovement::CalculateControlPointsCount(float distance, int humanizat
 
 std::vector<std::pair<float, float>> HumanLikeMovement::GenerateControlPoints(
     float startX, float startY, float endX, float endY, int count, int humanizationFactor) {
-
     std::vector<std::pair<float, float>> controlPoints;
-
-    // 添加起点
     controlPoints.push_back({ startX, startY });
-
-    // 计算直线路径
     float deltaX = endX - startX;
     float deltaY = endY - startY;
     float distance = std::sqrt(deltaX * deltaX + deltaY * deltaY);
-
-    // 计算中间控制点的偏移量
-    float maxOffset = distance * (0.1f + humanizationFactor / 200.0f);
-
-    // 添加中间控制点
+    // 确保 humanizationFactor 非负
+    float hFactor = std::max(0.0f, static_cast<float>(humanizationFactor));
+    // 计算 maxOffset 并设置最小值
+    float maxOffset = std::max(0.0001f, distance * (0.1f + hFactor / 200.0f));
     for (int i = 1; i < count - 1; ++i) {
         float ratio = static_cast<float>(i) / (count - 1);
         float lineX = startX + deltaX * ratio;
         float lineY = startY + deltaY * ratio;
-
-        // 添加随机偏移
         std::normal_distribution<float> offsetDist(0.0f, maxOffset / 3.0f);
         float offsetX = offsetDist(rng);
         float offsetY = offsetDist(rng);
-
         controlPoints.push_back({ lineX + offsetX, lineY + offsetY });
     }
-
-    // 添加终点
     controlPoints.push_back({ endX, endY });
-
     return controlPoints;
 }
 

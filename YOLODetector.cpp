@@ -13,7 +13,15 @@ public:
     std::string lastError;
     bool showDetections = false;
 
-    Impl() : yoloDetector(nullptr) {}
+    // FPS计算相关变量
+    int frameCount = 0;
+    float fps = 0.0f;
+    std::chrono::time_point<std::chrono::high_resolution_clock> lastFpsTime;
+
+    Impl() : yoloDetector(nullptr) {
+        // 初始化FPS计时
+        lastFpsTime = std::chrono::high_resolution_clock::now();
+    }
 
     ~Impl() {
         if (yoloDetector) {
@@ -100,6 +108,18 @@ public:
 
             // 显示检测结果
             if (showDetections && !image.empty()) {
+                // 更新FPS计算
+                frameCount++;
+                auto now = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<double> elapsed = now - lastFpsTime;
+
+                // 每秒更新一次FPS
+                if (elapsed.count() >= 1.0) {
+                    fps = frameCount / elapsed.count();
+                    frameCount = 0;
+                    lastFpsTime = now;
+                }
+
                 cv::Mat displayImage = image.clone();
 
                 for (const auto& dlr : dlResults) {
@@ -128,6 +148,11 @@ public:
                         2
                     );
                 }
+
+                // 在图像左上角显示FPS
+                std::string fpsText = "FPS: " + std::to_string(static_cast<int>(fps));
+                cv::putText(displayImage, fpsText, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX,
+                    1.0, cv::Scalar(0, 255, 0), 2);
 
                 // 显示图像
                 cv::namedWindow("Detection Results", cv::WINDOW_NORMAL);

@@ -31,6 +31,11 @@ namespace {
     std::atomic<bool> debugMode{ false };
     std::atomic<bool> showCaptureDebug{ false }; // 新增：控制是否显示捕获的屏幕信息
 
+    // FPS计算相关变量
+    int frameCount = 0;
+    float fps = 0.0f;
+    std::chrono::time_point<std::chrono::high_resolution_clock> lastFpsTime;
+
     // 采集器实例
     std::shared_ptr<IFrameCapture> capturer;
 }
@@ -271,6 +276,9 @@ void registerCustomCaptures() {
 void captureThreadFunc(std::shared_ptr<IFrameCapture> capturer) {
     std::cout << "Capture thread started" << std::endl;
 
+    // 初始化FPS计时
+    lastFpsTime = std::chrono::high_resolution_clock::now();
+
     // 开始采集
     if (!capturer->start()) {
         std::cerr << "Failed to start capturer: " << capturer->getLastError() << std::endl;
@@ -296,16 +304,33 @@ void captureThreadFunc(std::shared_ptr<IFrameCapture> capturer) {
 
             // 如果开启了屏幕捕获调试，显示采集到的屏幕信息
             if (showCaptureDebug.load()) {
-               
+                // 更新FPS计算
+                frameCount++;
+                auto now = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<double> elapsed = now - lastFpsTime;
+
+                // 每秒更新一次FPS
+                if (elapsed.count() >= 1.0) {
+                    fps = frameCount / elapsed.count();
+                    frameCount = 0;
+                    lastFpsTime = now;
+                }
+
+                // 在图像左上角显示FPS
+                cv::Mat displayFrame = frame.clone();
+                std::string fpsText = "FPS: " + std::to_string(static_cast<int>(fps));
+                cv::putText(displayFrame, fpsText, cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX,
+                    1.0, cv::Scalar(0, 255, 0), 2);
+
                 // 使用OpenCV显示捕获的图像
                 cv::namedWindow("Screen Capture Debug", cv::WINDOW_AUTOSIZE);
-                cv::imshow("Screen Capture Debug", frame);
+                cv::imshow("Screen Capture Debug", displayFrame);
                 cv::waitKey(1); // 必要的，保持窗口更新
             }
         }
 
         // 控制帧率
-        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60fps
+        std::this_thread::sleep_for(std::chrono::milliseconds(2)); // ~60fps
     }
 
     // 如果显示窗口打开，关闭它
