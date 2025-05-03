@@ -161,7 +161,7 @@ void ActionModule::ProcessLoop() {
         // 获取最新预测结果
         PredictionResult prediction;
         bool hasPrediction = PredictionModule::GetLatestPrediction(prediction);
-
+        std::cout <<"Prediction result: " << prediction.x << ", " << prediction.y << std::endl;
         // 判断目标是否丢失
         if (!hasPrediction || prediction.x == 999 || prediction.y == 999) {
             // 如果是第一次丢失目标

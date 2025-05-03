@@ -34,6 +34,14 @@ namespace PredictionModule {
     // 上次获取到有效目标的时间
     std::chrono::high_resolution_clock::time_point g_lastValidTargetTime;
 
+    // 添加：预测有效范围限制
+    constexpr int MAX_VALID_COORDINATE = 1000;  // 合理的最大坐标值
+    constexpr float MAX_VALID_VELOCITY = 300.0f; // 合理的最大速度值(像素/秒)
+
+    // 添加：连续无效预测计数
+    int g_consecutiveInvalidPredictions = 0;
+    constexpr int MAX_INVALID_PREDICTIONS = 5;  // 允许的最大连续无效预测次数
+
     // 重置滤波器状态
     void ResetFilterState(const DetectionResult& target) {
         g_filterState.xEst = target.x;
@@ -42,10 +50,24 @@ namespace PredictionModule {
         g_filterState.vyEst = 0;
         g_filterState.lastUpdateTime = std::chrono::high_resolution_clock::now();
         g_filterState.initialized = true;
+        g_consecutiveInvalidPredictions = 0;  // 重置无效预测计数
 
         g_lastValidTargetTime = std::chrono::high_resolution_clock::now();
 
         std::cout << "Filter state reset with target at (" << target.x << "," << target.y << ")" << std::endl;
+    }
+
+    // 检查速度估计是否有效
+    bool IsVelocityValid(float vx, float vy) {
+        float speedMagnitude = std::sqrt(vx * vx + vy * vy);
+        return speedMagnitude <= MAX_VALID_VELOCITY;
+    }
+
+    // 限制值在合理范围内
+    float ClampValue(float value, float min, float max) {
+        if (value < min) return min;
+        if (value > max) return max;
+        return value;
     }
 
     // 更新g-h滤波器状态
@@ -60,7 +82,13 @@ namespace PredictionModule {
 
         // 计算时间增量(秒)
         float deltaT = std::chrono::duration<float>(currentTime - g_filterState.lastUpdateTime).count();
-        if (deltaT <= 0) return; // 防止除以零
+        if (deltaT <= 0.0001f) return; // 防止除以极小值
+
+        // 如果时间间隔太大，说明可能是断断续续的处理，重置滤波器
+        if (deltaT > 0.5f) {  // 如果超过0.5秒没有更新
+            ResetFilterState(target);
+            return;
+        }
 
         // 1. 预测步骤 - 根据上一次的估计和速度预测当前位置
         float xPred = g_filterState.xEst + g_filterState.vxEst * deltaT;
@@ -70,6 +98,11 @@ namespace PredictionModule {
         // 计算残差（实际位置与预测位置的差）
         float residualX = target.x - xPred;
         float residualY = target.y - yPred;
+
+        // 添加：限制残差大小，防止突变导致速度估计失控
+        float maxResidual = 50.0f;  // 根据你的应用场景调整
+        residualX = ClampValue(residualX, -maxResidual, maxResidual);
+        residualY = ClampValue(residualY, -maxResidual, maxResidual);
 
         // 更新位置估计: 预测位置 + g * 残差
         float g = g_gFactor.load();
@@ -81,6 +114,34 @@ namespace PredictionModule {
         // 更新速度估计: 上次速度估计 + h * 残差 / 时间间隔
         float vxEst = g_filterState.vxEst + h * (residualX / deltaT);
         float vyEst = g_filterState.vyEst + h * (residualY / deltaT);
+
+        // 添加：限制速度估计的大小
+        if (!IsVelocityValid(vxEst, vyEst)) {
+            // 如果速度估计不合理，限制它们
+            float speedMagnitude = std::sqrt(vxEst * vxEst + vyEst * vyEst);
+            if (speedMagnitude > MAX_VALID_VELOCITY) {
+                float scale = MAX_VALID_VELOCITY / speedMagnitude;
+                vxEst *= scale;
+                vyEst *= scale;
+
+                // 记录速度被限制的情况
+                std::cout << "Velocity limited from " << speedMagnitude
+                    << " to " << MAX_VALID_VELOCITY << std::endl;
+
+                // 增加无效预测计数
+                g_consecutiveInvalidPredictions++;
+
+                // 如果连续多次出现无效速度，考虑重置滤波器
+                if (g_consecutiveInvalidPredictions > MAX_INVALID_PREDICTIONS) {
+                    ResetFilterState(target);
+                    return;
+                }
+            }
+        }
+        else {
+            // 正常速度，重置计数器
+            g_consecutiveInvalidPredictions = 0;
+        }
 
         // 更新滤波器状态
         g_filterState.xEst = xEst;
@@ -101,7 +162,7 @@ namespace PredictionModule {
         auto timeSinceLastValidTarget = std::chrono::duration<float>(
             result.timestamp - g_lastValidTargetTime).count();
 
-        if (!g_filterState.initialized || timeSinceLastValidTarget > g_predictionTime.load()) {
+        if (!g_filterState.initialized || timeSinceLastValidTarget > g_predictionTime.load() * 1.5f) {
             // 目标丢失，输出特殊值
             result.x = 999;
             result.y = 999;
@@ -110,8 +171,27 @@ namespace PredictionModule {
 
         // 计算预测时间点的位置
         float predictionTimeSeconds = g_predictionTime.load();
-        result.x = static_cast<int>(g_filterState.xEst + g_filterState.vxEst * predictionTimeSeconds);
-        result.y = static_cast<int>(g_filterState.yEst + g_filterState.vyEst * predictionTimeSeconds);
+        float predictedX = g_filterState.xEst + g_filterState.vxEst * predictionTimeSeconds;
+        float predictedY = g_filterState.yEst + g_filterState.vyEst * predictionTimeSeconds;
+
+        // 添加：验证预测值是否在合理范围内
+        if (std::isnan(predictedX) || std::isnan(predictedY) ||
+            std::abs(predictedX) > MAX_VALID_COORDINATE ||
+            std::abs(predictedY) > MAX_VALID_COORDINATE) {
+
+            // 预测值异常，返回目标丢失信号
+            std::cout << "Invalid prediction detected: (" << predictedX << "," << predictedY << ")" << std::endl;
+            result.x = 999;
+            result.y = 999;
+
+            // 预测异常可能表明滤波器状态有问题，增加重置可能性
+            g_consecutiveInvalidPredictions++;
+            return result;
+        }
+
+        // 转换为整数坐标
+        result.x = static_cast<int>(predictedX);
+        result.y = static_cast<int>(predictedY);
 
         return result;
     }
@@ -153,7 +233,7 @@ namespace PredictionModule {
         std::cout << "Prediction module worker started" << std::endl;
 
         // 计算循环间隔时间 (目标60FPS+)
-        const auto loopInterval = std::chrono::microseconds(20); // 约为16.7ms，确保>60FPS
+        const auto loopInterval = std::chrono::microseconds(16667); // 约为16.7ms，确保>60FPS
 
         while (g_running) {
             auto loopStart = std::chrono::high_resolution_clock::now();
@@ -169,17 +249,37 @@ namespace PredictionModule {
 
                     // 如果有有效目标
                     if (nearestTarget.classId >= 0) {
-                        // 判断是否需要重置滤波器 (如果之前目标丢失) .count()表示：得到这个浮点数，表示“过去了多少秒”。
+                        // 判断是否需要重置滤波器 (如果之前目标丢失)
                         auto timeSinceLastValidTarget = std::chrono::duration<float>(
                             std::chrono::high_resolution_clock::now() - g_lastValidTargetTime).count();
 
-                        if (!g_filterState.initialized || timeSinceLastValidTarget > g_predictionTime.load()) {
+                        if (!g_filterState.initialized ||
+                            timeSinceLastValidTarget > g_predictionTime.load() * 1.5f ||
+                            g_consecutiveInvalidPredictions > MAX_INVALID_PREDICTIONS) {
                             ResetFilterState(nearestTarget);
                         }
                         else {
                             UpdateFilter(nearestTarget);
                         }
                     }
+                }
+
+                // 如果有连续无效预测但没有新目标，考虑重置滤波器状态
+                if (g_consecutiveInvalidPredictions > MAX_INVALID_PREDICTIONS && g_filterState.initialized) {
+                    // 将滤波器标记为未初始化，强制下一个有效目标时重置
+                    g_filterState.initialized = false;
+                    std::cout << "Filter marked as uninitialized due to consecutive invalid predictions" << std::endl;
+
+                    // 发送目标丢失信号
+                    PredictionResult lostSignal;
+                    lostSignal.x = 999;
+                    lostSignal.y = 999;
+                    lostSignal.timestamp = std::chrono::high_resolution_clock::now();
+                    g_predictionBuffer.write(lostSignal);
+
+                    // 重置计数器
+                    g_consecutiveInvalidPredictions = 0;
+                    continue;
                 }
 
                 // 预测未来位置
@@ -218,6 +318,7 @@ namespace PredictionModule {
         g_running = true;
         g_lastValidTargetTime = std::chrono::high_resolution_clock::now() - std::chrono::seconds(10); // 初始设为10秒前
         g_filterState = FilterState(); // 重置滤波器状态
+        g_consecutiveInvalidPredictions = 0; // 重置无效预测计数
 
         return std::thread(PredictionModuleWorker);
     }
@@ -241,7 +342,7 @@ namespace PredictionModule {
     }
 
     bool GetLatestPrediction(PredictionResult& result) {
-        return g_predictionBuffer.read(result, false);
+        return g_predictionBuffer.readLatest(result);
     }
 
     void SetGFactor(float g) {
