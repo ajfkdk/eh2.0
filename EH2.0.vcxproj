@@ -19,25 +19,32 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ActionModule.h" />
     <ClInclude Include="CaptureFactory.h" />
     <ClInclude Include="CaptureRegistry.h" />
     <ClInclude Include="DetectionModule.h" />
     <ClInclude Include="DetectionResult.h" />
+    <ClInclude Include="HumanLikeMovement.h" />
     <ClInclude Include="IFrameCapture.h" />
     <ClInclude Include="inference.h" />
+    <ClInclude Include="MouseController.h" />
     <ClInclude Include="PredictionModule.h" />
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="ScreenCaptureWindows.h" />
+    <ClInclude Include="WindowsMouseController.h" />
     <ClInclude Include="YOLODetector.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ActionModule.cpp" />
     <ClCompile Include="CaptureFactory.cpp" />
     <ClCompile Include="CaptureRegistry.cpp" />
     <ClCompile Include="DetectionModule.cpp" />
+    <ClCompile Include="HumanLikeMovement.cpp" />
     <ClCompile Include="inference.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PredictionModule.cpp" />
     <ClCompile Include="ScreenCaptureWindows.cpp" />
+    <ClCompile Include="WindowsMouseController.cpp" />
     <ClCompile Include="YOLODetector.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

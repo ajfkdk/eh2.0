@@ -3,12 +3,14 @@
 #include "ScreenCaptureWindows.h"
 #include "DetectionModule.h"
 #include "PredictionModule.h"
+#include "ActionModule.h"
 #include <opencv2/opencv.hpp>
 
 int main() {
     std::thread captureThread;
     std::thread detectionThread;
     std::thread predictionThread;
+    std::thread actionThread;
 
     try {
         // 初始化采集模块
@@ -20,37 +22,28 @@ int main() {
         // 初始化预测模块
         predictionThread = PredictionModule::Initialize();
 
+        // 初始化动作模块（拟人参数设为50）
+        actionThread = ActionModule::Initialize(50);
+
+        // 可选：启用自动开火
+        ActionModule::EnableAutoFire(true);
+
         // 可选：设置调试模式和显示检测框
         DetectionModule::SetDebugMode(true);
         DetectionModule::SetShowDetections(false);
 
         // 主循环
-        while (CaptureModule::IsRunning() && DetectionModule::IsRunning() && PredictionModule::IsRunning()) {
-            // 获取最新的检测结果
-     /*       DetectionResult detectionResult;
-            if (DetectionModule::GetLatestDetectionResult(detectionResult)) {
-                if (detectionResult.classId >= 0) {
-                    std::cout << "Detected: " << detectionResult.className
-                        << " at (" << detectionResult.x << "," << detectionResult.y << ")" << std::endl;
-                }
-            }*/
-
-            // 获取最新的预测结果
-            PredictionResult predictionResult;
-            if (PredictionModule::GetLatestPrediction(predictionResult)) {
-                if (predictionResult.x != 999 && predictionResult.y != 999) {
-                    std::cout << "Predicted position: (" << predictionResult.x << "," << predictionResult.y << ")" << std::endl;
-                }
-                else {
-                    std::cout << "Target lost!" << std::endl;
-                }
-            }
+        while (CaptureModule::IsRunning() &&
+            DetectionModule::IsRunning() &&
+            PredictionModule::IsRunning() &&
+            ActionModule::IsRunning()) {
 
             // 按ESC键退出
             if (cv::waitKey(1) == 27) {
                 CaptureModule::Stop();
                 DetectionModule::Stop();
                 PredictionModule::Stop();
+                ActionModule::Stop();
                 break;
             }
 
@@ -66,11 +59,13 @@ int main() {
     CaptureModule::Stop();
     DetectionModule::Stop();
     PredictionModule::Stop();
+    ActionModule::Stop();
 
     // 清理资源
     CaptureModule::Cleanup();
     DetectionModule::Cleanup();
     PredictionModule::Cleanup();
+    ActionModule::Cleanup();
 
     // 等待线程结束
     if (captureThread.joinable()) {
@@ -83,6 +78,10 @@ int main() {
 
     if (predictionThread.joinable()) {
         predictionThread.join();
+    }
+
+    if (actionThread.joinable()) {
+        actionThread.join();
     }
 
     // 释放资源
