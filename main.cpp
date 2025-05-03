@@ -8,7 +8,73 @@
 #include "WindowsMouseController.h"
 #include "HumanLikeMovement.h"
 
-int main() {
+// 在main.cpp中添加
+void TestUdpStream() {
+    std::cout << "开始测试UDP流接收..." << std::endl;
+
+    // 尝试不同的UDP地址格式
+    std::vector<std::string> addressFormats = {
+        "udp://@:8848",
+        "udp://0.0.0.0:8848",
+        "udp://:8848",
+        "udp://127.0.0.1:8848"
+    };
+
+    for (const auto& address : addressFormats) {
+        std::cout << "尝试地址: " << address << std::endl;
+
+        cv::VideoCapture cap;
+        cap.open(address, cv::CAP_FFMPEG);
+
+        if (!cap.isOpened()) {
+            std::cout << "  - 打开失败" << std::endl;
+            continue;
+        }
+
+        std::cout << "  - 打开成功，开始读取帧" << std::endl;
+
+        // 尝试读取10帧或直到失败
+        int frameCount = 0;
+        bool readSuccess = false;
+
+        for (int i = 0; i < 10; i++) {
+            cv::Mat frame;
+            if (cap.read(frame)) {
+                frameCount++;
+                readSuccess = true;
+
+                // 显示帧
+                cv::imshow("UDP Test", frame);
+                cv::waitKey(1);
+            }
+            else {
+                std::cout << "  - 读取第" << (i + 1) << "帧失败" << std::endl;
+                break;
+            }
+
+            // 短暂延迟
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+        cap.release();
+
+        if (readSuccess) {
+            std::cout << "  - 成功读取了" << frameCount << "帧" << std::endl;
+            std::cout << "UDP流测试成功，使用地址: " << address << std::endl;
+
+            // 等待用户确认
+            std::cout << "按任意键继续..." << std::endl;
+            cv::waitKey(0);
+            cv::destroyWindow("UDP Test");
+            return;
+        }
+    }
+
+    std::cout << "所有UDP地址格式均测试失败!" << std::endl;
+}
+
+
+int main1() {
     std::thread captureThread;
     std::thread detectionThread;
     std::thread predictionThread;
@@ -150,20 +216,7 @@ void TestMouseMovement(int targetX, int targetY, int humanizationFactor = 50) {
     std::cout << "测试完成。最终鼠标位置: (" << currentX << ", " << currentY << ")" << std::endl;
 }
 
-int main1() {
-    int targetX, targetY, humanFactor;
-
-    std::cout << "输入目标X坐标: ";
-    std::cin >> targetX;
-
-    std::cout << "输入目标Y坐标: ";
-    std::cin >> targetY;
-
-    std::cout << "输入拟人化因子(1-100): ";
-    std::cin >> humanFactor;
-    humanFactor = max(1, min(100, humanFactor));
-
-    // 执行测试
-    TestMouseMovement(targetX, targetY, humanFactor);
-    return 0;
+int main() {
+    TestUdpStream();
+    
 }

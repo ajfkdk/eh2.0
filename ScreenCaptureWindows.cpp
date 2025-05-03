@@ -387,7 +387,7 @@ namespace CaptureModule {
 
         // 创建采集器
         //capturer = CaptureFactory::createCapture(CaptureType::WINDOWS_SCREEN, config);
-        auto capture = CaptureFactory::createCapture(CaptureType::UDP_STREAM, config);
+        capturer = CaptureFactory::createCapture(CaptureType::UDP_STREAM, config);
 
         if (!capturer) {
             throw std::runtime_error("Failed to create capturer");
