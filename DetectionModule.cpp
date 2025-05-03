@@ -27,7 +27,6 @@ namespace CaptureModule {
 // 定义自己的环形缓冲区来存储检测结果
 #include "RingBuffer.h"
 
-
 // 检测结果缓冲区大小
 constexpr size_t RESULT_BUFFER_SIZE = 60;  // 2秒@30fps
 
@@ -51,37 +50,84 @@ namespace {
 // 检测线程函数
 void detectionThreadFunc() {
     std::cout << "Detection thread started" << std::endl;
-    while (running.load()) {
+
+    ////    // 设置线程优先级
+    //#ifdef _WIN32
+    //    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+    //#endif
+
+        // 创建计时器用于控制帧率
+    auto lastProcessTime = std::chrono::high_resolution_clock::now();
+  
+
+    // 预测循环
+    while (running.load()) {       
+
+         // 从采集模块获取帧
         Frame frame;
         if (CaptureModule::GetLatestCaptureFrame(frame)) {
             if (!frame.image.empty()) {
+                // 调整图像大小为320x320
                 cv::Mat resizedImage;
                 cv::resize(frame.image, resizedImage, cv::Size(320, 320));
+
+                // 处理开始时间
                 auto start = std::chrono::high_resolution_clock::now();
+
+                // 进行目标检测
                 std::vector<DetectionResult> results = detector->ProcessImage(resizedImage);
+
+                // 处理检测结果
                 if (!results.empty()) {
+                    // 保存所有目标到多目标缓冲区
                     multiResultBuffer.write(results);
+
+                    // 找出最高置信度的目标
                     auto bestResult = *std::max_element(results.begin(), results.end(),
-                        [](const auto& a, const auto& b) { return a.confidence < b.confidence; });
+                        [](const auto& a, const auto& b) {
+                            return a.confidence < b.confidence;
+                        });
+
+                    // 保存最高置信度目标到单目标缓冲区
                     singleResultBuffer.write(bestResult);
                 }
                 else {
+                    // 没有检测到目标，写入空结果
                     DetectionResult emptyResult;
                     singleResultBuffer.write(emptyResult);
+
                     std::vector<DetectionResult> emptyResults;
                     multiResultBuffer.write(emptyResults);
                 }
+
+                // 处理结束时间
                 auto end = std::chrono::high_resolution_clock::now();
+                lastProcessTime = end;
+
+                // 如果开启调试模式，输出处理时间
                 if (debugMode.load()) {
                     std::chrono::duration<double, std::milli> elapsed = end - start;
                     std::cout << "Detection time: " << elapsed.count() << " ms" << std::endl;
+
+                    if (!results.empty()) {
+                        std::cout << "Detected " << results.size() << " objects:" << std::endl;
+                        for (const auto& r : results) {
+                            std::cout << "  - " << r.className << " at (" << r.x << "," << r.y
+                                << ") conf: " << r.confidence << std::endl;
+                        }
+                    }
+                    else {
+                        std::cout << "No objects detected" << std::endl;
+                    }
                 }
             }
         }
         else {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1)); // 仅在无帧时短暂等待
+            // 等待一小段时间后再尝试获取下一帧
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
     }
+
     std::cout << "Detection thread stopped" << std::endl;
 }
 

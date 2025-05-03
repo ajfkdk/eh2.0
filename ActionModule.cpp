@@ -161,7 +161,7 @@ void ActionModule::ProcessLoop() {
         // 获取最新预测结果
         PredictionResult prediction;
         bool hasPrediction = PredictionModule::GetLatestPrediction(prediction);
-        std::cout <<"Prediction result: " << prediction.x << ", " << prediction.y << std::endl;
+
         // 判断目标是否丢失
         if (!hasPrediction || prediction.x == 999 || prediction.y == 999) {
             // 如果是第一次丢失目标
@@ -199,13 +199,27 @@ void ActionModule::ProcessLoop() {
             int screenWidth = GetSystemMetrics(SM_CXSCREEN);
             int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
-            // 转换预测坐标到屏幕坐标
-            int screenX = (screenWidth / 2) + (prediction.x - 160);
-            int screenY = (screenHeight / 2) + (prediction.y - 160);
+            // 计算屏幕中心点
+            int screenCenterX = screenWidth / 2;
+            int screenCenterY = screenHeight / 2;
 
-            // 更新目标位置
-            targetX = screenX;
-            targetY = screenY;
+            // 图像中心的左上角偏移到屏幕中心的图像左上角
+            float offsetX = screenCenterX - 320.0f / 2;
+            float offsetY = screenCenterX - 320.0f / 2;
+
+            // 计算目标坐标
+            targetX = static_cast<int>(offsetX+ prediction.x);
+            targetY = static_cast<int>(offsetY-prediction.y);
+
+
+             std::cout << "Screen resolution: " << screenWidth << "x" << screenHeight << std::endl;
+             std::cout << "Raw prediction: (" << prediction.x << ", " << prediction.y << ")" << std::endl;
+             std::cout << "Converted target: (" << targetX << ", " << targetY << ")" << std::endl;
+
+            // 日志记录新的坐标转换方法
+            std::stringstream ssCoord;
+            ssCoord << "Using direct prediction coordinates: (" << targetX << ", " << targetY << ")";
+            LogMouseMovement(ssCoord.str());
 
             // 计算距离
             float distance = std::sqrt(
@@ -229,7 +243,7 @@ void ActionModule::ProcessLoop() {
             }
 
             // 如果有路径点，移动到下一个点
-            if (pathIndex < currentPath.size()) {
+            while (pathIndex < currentPath.size()) {
                 auto nextPoint = currentPath[pathIndex];
 
                 // 添加微小抖动
@@ -242,6 +256,7 @@ void ActionModule::ProcessLoop() {
 
                 std::stringstream ss;
                 ss << "Moving to: (" << jitteredPoint.first << ", " << jitteredPoint.second << ")";
+                std::cout<<ss.str()<<std::endl;
                 LogMouseMovement(ss.str());
 
                 pathIndex++;
@@ -249,6 +264,11 @@ void ActionModule::ProcessLoop() {
                 // 控制鼠标开火
                 bool closeToTarget = (pathIndex > currentPath.size() * 0.8);
                 ControlMouseFire(closeToTarget);
+
+                // 走一小段就好，不要走完
+                if (pathIndex > 10) {
+                    break;
+                }
             }
         }
 
@@ -256,7 +276,7 @@ void ActionModule::ProcessLoop() {
         lastUpdateTime = currentTime;
 
         // 控制循环频率，大约60fps  改为5试试看
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 }
 

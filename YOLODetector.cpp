@@ -91,7 +91,7 @@ public:
 
             // 转换结果格式
             for (const auto& dlr : dlResults) {
-                // 计算中心点坐标
+                // 计算目标中心点坐标
                 int centerX = dlr.box.x + dlr.box.width / 2;
                 int centerY = dlr.box.y + dlr.box.height / 2;
 
