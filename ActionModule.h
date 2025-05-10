@@ -16,6 +16,9 @@ private:
     // 主处理循环
     static void ProcessLoop();
 
+    // 归一化移动值到指定范围
+    static std::pair<float, float> NormalizeMovement(float x, float y, float maxValue);
+
 public:
     // 初始化模块
     static std::thread Initialize();
