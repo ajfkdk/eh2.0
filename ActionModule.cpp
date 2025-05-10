@@ -1,9 +1,9 @@
 #include "ActionModule.h"
-#include "WindowsMouseController.h"
 #include <iostream>
 #include <cmath>
 #include <Windows.h>
 #include "PredictionModule.h"
+#include "KmboxNetMouseController.h"
 
 // 静态成员初始化
 std::thread ActionModule::actionThread;
@@ -14,7 +14,7 @@ std::thread ActionModule::Initialize() {
     // 如果没有设置鼠标控制器，使用Windows默认实现
     if (!mouseController) {
         // 创建Windows鼠标控制器的智能指针
-        mouseController = std::make_unique<WindowsMouseController>();
+        mouseController = std::make_unique<KmboxNetMouseController>();
     }
 
     // 设置运行标志
