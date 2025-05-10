@@ -84,7 +84,7 @@ void SetThreadHighPriority(std::thread& thread) {
     }
 }
 
-int main1() {
+int main() {
     // 设置高优先级和资源分配
     if (!SetHighPriorityAndResources()) {
         std::cerr << "Warning: Could not set high priority for the process." << std::endl;
@@ -112,13 +112,11 @@ int main1() {
         // 设置线程优先级
         SetThreadHighPriority(predictionThread);
 
-        // 初始化动作模块（拟人参数设为50）
-        actionThread = ActionModule::Initialize(50);
+        // 初始化动作模块
+        actionThread = ActionModule::Initialize();
         // 设置线程优先级
         SetThreadHighPriority(actionThread);
 
-        // 可选：启用自动开火
-        ActionModule::EnableAutoFire(false);
 
         // 可选：采集模块-->设置调试模式和显示检测框
         CaptureModule::SetCaptureDebug(true);
@@ -255,7 +253,7 @@ void TestMouseMonitoring() {
     std::cout << "鼠标监听测试完成" << std::endl;
 }
 
-int main() {
+int main1() {
     // 设置高优先级和资源分配
     SetHighPriorityAndResources();
 
