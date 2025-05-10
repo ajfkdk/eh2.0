@@ -24,10 +24,14 @@
     <ClInclude Include="CaptureRegistry.h" />
     <ClInclude Include="DetectionModule.h" />
     <ClInclude Include="DetectionResult.h" />
+    <ClInclude Include="HidTable.h" />
     <ClInclude Include="HumanLikeMovement.h" />
     <ClInclude Include="IFrameCapture.h" />
     <ClInclude Include="inference.h" />
+    <ClInclude Include="kmboxNet.h" />
+    <ClInclude Include="KmboxNetMouseController.h" />
     <ClInclude Include="MouseController.h" />
+    <ClInclude Include="my_enc.h" />
     <ClInclude Include="NetworkStreamCapture.h" />
     <ClInclude Include="PredictionModule.h" />
     <ClInclude Include="RingBuffer.h" />
@@ -42,7 +46,10 @@
     <ClCompile Include="DetectionModule.cpp" />
     <ClCompile Include="HumanLikeMovement.cpp" />
     <ClCompile Include="inference.cpp" />
+    <ClCompile Include="kmboxNet.cpp" />
+    <ClCompile Include="KmboxNetMouseController.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="my_enc.cpp" />
     <ClCompile Include="NetworkStreamCapture.cpp" />
     <ClCompile Include="PredictionModule.cpp" />
     <ClCompile Include="ScreenCaptureWindows.cpp" />

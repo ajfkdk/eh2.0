@@ -78,6 +78,18 @@
     <ClInclude Include="NetworkStreamCapture.h">
       <Filter>头文件\CaptureModule</Filter>
     </ClInclude>
+    <ClInclude Include="KmboxNetMouseController.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="kmboxNet.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="HidTable.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="my_enc.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CaptureFactory.cpp">
@@ -115,6 +127,15 @@
     </ClCompile>
     <ClCompile Include="NetworkStreamCapture.cpp">
       <Filter>源文件\CaptureModule</Filter>
+    </ClCompile>
+    <ClCompile Include="KmboxNetMouseController.cpp">
+      <Filter>源文件\ActionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="kmboxNet.cpp">
+      <Filter>源文件\ActionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="my_enc.cpp">
+      <Filter>源文件\ActionModule</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -34,6 +34,7 @@
 #include "WindowsMouseController.h"
 #include "HumanLikeMovement.h"
 #include "CaptureFactory.h"
+#include "KmboxNetMouseController.h"
 
 // 设置高优先级和资源分配
 bool SetHighPriorityAndResources() {
@@ -198,51 +199,9 @@ void TestMouseMovement(int targetX, int targetY, int humanizationFactor = 50) {
     std::cout << "拟人化因子: " << humanizationFactor << std::endl;
 
     // 创建鼠标控制器
-    std::unique_ptr<MouseController> mouseController = std::make_unique<WindowsMouseController>();
+    std::unique_ptr<MouseController> mouseController = std::make_unique<KmboxNetMouseController>();
 
-    // 获取当前鼠标位置
-    int currentX = 0, currentY = 0;
-    mouseController->GetCurrentPosition(currentX, currentY);
-    std::cout << "当前鼠标位置: (" << currentX << ", " << currentY << ")" << std::endl;
-
-    // 计算距离
-    float distance = std::sqrt(std::pow(targetX - currentX, 2) + std::pow(targetY - currentY, 2));
-    std::cout << "到目标的距离: " << distance << std::endl;
-
-    // 生成贝塞尔路径
-    std::vector<std::pair<float, float>> path = HumanLikeMovement::GenerateBezierPath(
-        currentX, currentY, targetX, targetY, humanizationFactor,
-        std::max(10, static_cast<int>(distance / 5)));
-
-    std::cout << "生成路径点数量: " << path.size() << std::endl;
-
-    // 应用速度曲线
-    path = HumanLikeMovement::ApplySpeedProfile(path, humanizationFactor);
-    std::cout << "应用速度曲线后路径点数量: " << path.size() << std::endl;
-
-    // 遍历路径点，应用抖动并移动鼠标
-    for (size_t i = 0; i < path.size(); ++i) {
-        // 添加微小抖动
-        auto jitteredPoint = HumanLikeMovement::AddHumanJitter(
-            path[i].first, path[i].second, distance, humanizationFactor);
-
-        // 移动鼠标到抖动后的位置
-        mouseController->MoveTo(
-            static_cast<int>(jitteredPoint.first), static_cast<int>(jitteredPoint.second));
-
-        // 打印调试信息
-        if (i % 5 == 0 || i == path.size() - 1) {  // 每5个点或最后一个点输出一次
-            std::cout << "移动到: (" << jitteredPoint.first << ", " << jitteredPoint.second
-                << ") [原始路径点: (" << path[i].first << ", " << path[i].second << ")]" << std::endl;
-        }
-
-        // 控制移动速度
-        std::this_thread::sleep_for(std::chrono::milliseconds(4));
-    }
-
-    // 获取最终鼠标位置
-    mouseController->GetCurrentPosition(currentX, currentY);
-    std::cout << "测试完成。最终鼠标位置: (" << currentX << ", " << currentY << ")" << std::endl;
+    mouseController->MoveTo(targetX, targetY);
 }
 
 int main1() {
