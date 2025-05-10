@@ -32,29 +32,16 @@ void KmboxNetMouseController::MoveTo(int x, int y) {
         return;
     }
 
-    // 获取当前鼠标位置
-    POINT cursorPos;
-    if (GetCursorPos(&cursorPos)) {
-        // 计算相对移动距离
-        int deltaX = x - cursorPos.x;
-        int deltaY = y - cursorPos.y;
+    int result = kmNet_mouse_move_auto(static_cast<short>(x), static_cast<short>(y));
 
-        // 使用kmboxNet移动鼠标
-        int result = kmNet_mouse_move(static_cast<short>(deltaX), static_cast<short>(deltaY));
-
-        if (result != 0) {
-            std::cerr << "KmboxNet移动鼠标失败，错误码: " << result << std::endl;
-        }
+    if (result != 0) {
+        std::cerr << "KmboxNet移动鼠标失败，错误码: " << result << std::endl;
     }
 }
 
 void KmboxNetMouseController::GetCurrentPosition(int& x, int& y) {
     // 由于kmboxNet没有直接提供获取鼠标位置的接口，我们使用Windows API获取
-    POINT cursorPos;
-    if (GetCursorPos(&cursorPos)) {
-        x = cursorPos.x;
-        y = cursorPos.y;
-    }
+    x=0, y=0;
 }
 
 void KmboxNetMouseController::LeftClick() {
