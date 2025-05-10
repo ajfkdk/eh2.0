@@ -218,23 +218,8 @@ void NetworkStreamCapture::receiveLoop() {
                 header->timestamps[static_cast<size_t>(TimestampStage::FINISH_DECODING)] = std::chrono::duration_cast<std::chrono::microseconds>(
                     std::chrono::system_clock::now().time_since_epoch()).count();
 
-                // 计算网络延迟
-                double networkDelay = 0.0;
-                if (header->timestamps[static_cast<size_t>(TimestampStage::START_SENDING)] > 0) {
-                    networkDelay = (receiveStartTime - header->timestamps[static_cast<size_t>(TimestampStage::START_SENDING)]) / 1000.0;
-                }
-
+                
                 if (!image.empty()) {
-                    // 在图像上显示信息
-                    std::ostringstream infoText;
-                    infoText << "Frame: " << header->frameId;
-                    if (networkDelay > 0) {
-                        infoText << " | Delay: " << std::fixed << std::setprecision(1) << networkDelay << "ms";
-                    }
-
-                    cv::putText(image, infoText.str(), cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.7,
-                        cv::Scalar(0, 0, 255), 2);
-
                     // 更新当前帧
                     std::lock_guard<std::mutex> lock(frameMutex);
                     currentFrame = image.clone();

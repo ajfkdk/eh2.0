@@ -26,7 +26,7 @@ struct CaptureConfig {
     int top = 0;
     int right = 0;
     int bottom = 0;
-    int fps = 60;
+    int fps = 120;
 };
 
 // 错误处理回调类型
