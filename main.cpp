@@ -84,7 +84,7 @@ void SetThreadHighPriority(std::thread& thread) {
     }
 }
 
-int main() {
+int main1() {
     // 设置高优先级和资源分配
     if (!SetHighPriorityAndResources()) {
         std::cerr << "Warning: Could not set high priority for the process." << std::endl;
@@ -204,7 +204,7 @@ void TestMouseMovement(int targetX, int targetY, int humanizationFactor = 50) {
     mouseController->MoveTo(targetX, targetY);
 }
 
-int main1() {
+int main() {
     // 设置高优先级和资源分配
     SetHighPriorityAndResources();
 

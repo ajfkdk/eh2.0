@@ -1,11 +1,7 @@
 #include "KmboxNetMouseController.h"
 #include <iostream>
-#include <Windows.h>
-
-// 需要包含kmboxNet相关头文件
-extern "C" {
 #include "kmboxNet.h"
-}
+
 
 KmboxNetMouseController::KmboxNetMouseController(const std::string& deviceIp,
     const std::string& devicePort,

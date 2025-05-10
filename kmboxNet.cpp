@@ -16,7 +16,7 @@ static int mask_keyboard_mouse_flag = 0;//键鼠屏蔽状态
 static short monitor_port = 0;
 static unsigned char key[16] = { 0 };	//加密密钥
 static HANDLE m_hMutex_lock = NULL;	    //多线程互斥锁
-extern unsigned int xbox_mac;			//xboxAPI也需要mac
+//extern unsigned int xbox_mac;			//xboxAPI也需要mac
 #pragma pack(1)
 typedef struct {
 	unsigned char report_id;
@@ -129,7 +129,7 @@ int kmNet_init(char* ip, char* port, char* mac)
 	addrSrv.sin_family = AF_INET;
 	addrSrv.sin_port = htons(atoi(port));//端口UUID[1]>>16高16位
 	tx.head.mac = StrToHex(mac, 4);		 //盒子的mac 固定 UUID
-	xbox_mac = tx.head.mac;				 //记录mac值
+	//xbox_mac = tx.head.mac;				 //记录mac值
 	tx.head.rand = rand();				 //随机值。后续可用于网络数据包加密。避免特征。先预留
 	tx.head.indexpts = 0;				 //指令统计值
 	tx.head.cmd = cmd_connect;			 //指令
