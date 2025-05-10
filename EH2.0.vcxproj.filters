@@ -25,6 +25,12 @@
     <Filter Include="源文件\DetectionModule">
       <UniqueIdentifier>{cfe43279-7fd6-4b2b-90d3-a78722489443}</UniqueIdentifier>
     </Filter>
+    <Filter Include="源文件\ActionModule">
+      <UniqueIdentifier>{1a3090d3-83fc-42d8-852a-8cf09ebf827c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\ActionModule">
+      <UniqueIdentifier>{1cc6809f-c934-42ad-9125-c604fcba4b7e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="IFrameCapture.h">
@@ -54,7 +60,22 @@
     <ClInclude Include="inference.h">
       <Filter>头文件\DetectionModule</Filter>
     </ClInclude>
-    <ClInclude Include="CaptureTypes.h">
+    <ClInclude Include="ActionModule.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="HumanLikeMovement.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="MouseController.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="PredictionModule.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsMouseController.h">
+      <Filter>头文件\ActionModule</Filter>
+    </ClInclude>
+    <ClInclude Include="NetworkStreamCapture.h">
       <Filter>头文件\CaptureModule</Filter>
     </ClInclude>
   </ItemGroup>
@@ -79,6 +100,21 @@
     </ClCompile>
     <ClCompile Include="inference.cpp">
       <Filter>源文件\DetectionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="ActionModule.cpp">
+      <Filter>源文件\ActionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="HumanLikeMovement.cpp">
+      <Filter>源文件\ActionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="PredictionModule.cpp">
+      <Filter>源文件\ActionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsMouseController.cpp">
+      <Filter>源文件\ActionModule</Filter>
+    </ClCompile>
+    <ClCompile Include="NetworkStreamCapture.cpp">
+      <Filter>源文件\CaptureModule</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>
