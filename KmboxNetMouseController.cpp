@@ -36,7 +36,7 @@ void KmboxNetMouseController::MoveTo(int x, int y) {
         return;
     }
 
-    int result = kmNet_mouse_move_auto(static_cast<short>(x), static_cast<short>(y),200);
+    int result = kmNet_mouse_move_auto(static_cast<short>(x), static_cast<short>(y),10);
 
     if (result != 0) {
         std::cerr << "KmboxNetÒÆ¶¯Êó±êÊ§°Ü£¬´íÎóÂë: " << result << std::endl;
