@@ -1,11 +1,13 @@
 #ifndef I_FRAME_CAPTURE_H
 #define I_FRAME_CAPTURE_H
 
+#include <WinSock2.h>
+#include <ws2tcpip.h>
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <functional>
 #include <memory>
-
+#include <windows.h>
 // ²É¼¯Æ÷×´Ì¬Ã¶¾Ù
 enum class CaptureStatus {
     CAP_INITIALIZED,

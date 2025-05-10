@@ -2,10 +2,11 @@
 #ifndef NETWORK_STREAM_CAPTURE_H
 #define NETWORK_STREAM_CAPTURE_H
 
+// 1. 先包含 WinSock2.h 和 ws2tcpip.h
+
+
+// 2. 其他自定义头文件
 #include "IFrameCapture.h"
-#include <WinSock2.h>
-#include <ws2tcpip.h>
-#include <windows.h>
 #include <atomic>
 #include <thread>
 #include <vector>

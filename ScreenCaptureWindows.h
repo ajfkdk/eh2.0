@@ -2,7 +2,7 @@
 #define SCREEN_CAPTURE_WINDOWS_H
 
 #include "IFrameCapture.h"
-#include <windows.h>
+#include "CaptureFactory.h"  
 #include <atomic>
 #include <thread>
 #include <chrono>
@@ -11,7 +11,6 @@
 namespace CaptureModule {
     // 初始化采集模块，返回采集线程
     std::thread Initialize(CaptureType type = CaptureType::WINDOWS_SCREEN);
-    std::thread Initialize(const std::string& captureType);
 
     // 清理资源
     void Cleanup();

@@ -32,7 +32,7 @@ int main() {
         ActionModule::EnableAutoFire(false);
 
         // 可选：采集模块-->设置调试模式和显示检测框
-        CaptureModule::SetCaptureDebug(false);
+        CaptureModule::SetCaptureDebug(true);
 
         // 可选：设置调试模式和显示检测框
         DetectionModule::SetDebugMode(false);
@@ -118,7 +118,7 @@ void TestMouseMovement(int targetX, int targetY, int humanizationFactor = 50) {
     // 生成贝塞尔路径
     std::vector<std::pair<float, float>> path = HumanLikeMovement::GenerateBezierPath(
         currentX, currentY, targetX, targetY, humanizationFactor,
-        max(10, static_cast<int>(distance / 5)));
+        std::max(10, static_cast<int>(distance / 5)));
 
     std::cout << "生成路径点数量: " << path.size() << std::endl;
 
@@ -162,7 +162,7 @@ int main1() {
 
     std::cout << "输入拟人化因子(1-100): ";
     std::cin >> humanFactor;
-    humanFactor = max(1, min(100, humanFactor));
+    humanFactor = std::max(1, std::min(100, humanFactor));
 
     // 执行测试
     TestMouseMovement(targetX, targetY, humanFactor);
