@@ -10,7 +10,8 @@
 // 提供初始化接口
 namespace CaptureModule {
     // 初始化采集模块，返回采集线程
-    std::thread Initialize();
+    std::thread Initialize(CaptureType type = CaptureType::WINDOWS_SCREEN);
+    std::thread Initialize(const std::string& captureType);
 
     // 清理资源
     void Cleanup();

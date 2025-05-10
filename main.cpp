@@ -7,6 +7,7 @@
 #include <opencv2/opencv.hpp>
 #include "WindowsMouseController.h"
 #include "HumanLikeMovement.h"
+#include "CaptureFactory.h"
 
 int main() {
     std::thread captureThread;
@@ -16,7 +17,7 @@ int main() {
 
     try {
         // 初始化采集模块
-        captureThread = CaptureModule::Initialize();
+        captureThread = CaptureModule::Initialize(CaptureType::NETWORK_STREAM);
 
         // 初始化检测模块
         detectionThread = DetectionModule::Initialize("./123.onnx");

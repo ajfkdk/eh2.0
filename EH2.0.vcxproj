@@ -28,6 +28,7 @@
     <ClInclude Include="IFrameCapture.h" />
     <ClInclude Include="inference.h" />
     <ClInclude Include="MouseController.h" />
+    <ClInclude Include="NetworkStreamCapture.h" />
     <ClInclude Include="PredictionModule.h" />
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="ScreenCaptureWindows.h" />
@@ -42,6 +43,7 @@
     <ClCompile Include="HumanLikeMovement.cpp" />
     <ClCompile Include="inference.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="NetworkStreamCapture.cpp" />
     <ClCompile Include="PredictionModule.cpp" />
     <ClCompile Include="ScreenCaptureWindows.cpp" />
     <ClCompile Include="WindowsMouseController.cpp" />

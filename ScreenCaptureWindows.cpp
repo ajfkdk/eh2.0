@@ -3,6 +3,7 @@
 #include "CaptureFactory.h"
 #include "CaptureRegistry.h"
 #include <iostream>
+#include "NetworkStreamCapture.h"
 
 // ========== 全局变量和结构体定义 ==========
 
@@ -269,6 +270,17 @@ void registerCustomCaptures() {
         }
     );
 
+    // 注册网络流采集
+    CaptureRegistry::registerImplementation("NetworkStream",
+        [](const CaptureConfig& config) -> std::shared_ptr<IFrameCapture> {
+            int port = 8888; // 默认端口
+            auto capture = std::make_shared<NetworkStreamCapture>(port);
+            capture->configure(config);
+            capture->initialize();
+            return capture;
+        }
+    );
+
     // 可以在这里注册其他采集实现
 }
 
@@ -356,8 +368,8 @@ namespace CaptureModule {
         return frameBuffer.read(frame, true);
     }
 
-    // 初始化模块
-    std::thread Initialize() {
+    // 使用类型枚举初始化
+    std::thread Initialize(CaptureType type) {
         // 注册采集实现
         registerCustomCaptures();
 
@@ -374,7 +386,42 @@ namespace CaptureModule {
         config.captureCenter = true;
 
         // 创建采集器
-        capturer = CaptureFactory::createCapture(CaptureType::WINDOWS_SCREEN, config);
+        capturer = CaptureFactory::createCapture(type, config);
+
+        if (!capturer) {
+            throw std::runtime_error("Failed to create capturer");
+        }
+
+        // 注册错误处理器
+        capturer->registerErrorHandler(handleCaptureError);
+
+        // 准备启动
+        running.store(true);
+        frameBuffer.open();
+
+        // 启动采集线程
+        return std::thread(captureThreadFunc, capturer);
+    }
+
+    // 使用名称初始化
+    std::thread Initialize(const std::string& captureType) {
+        // 注册采集实现
+        registerCustomCaptures();
+
+        // 输出可用的采集实现
+        std::cout << "Available capture implementations:" << std::endl;
+        for (const auto& name : CaptureRegistry::getRegisteredImplementations()) {
+            std::cout << " - " << name << std::endl;
+        }
+
+        // 创建采集配置
+        CaptureConfig config;
+        config.width = 320;
+        config.height = 320;
+        config.captureCenter = true;
+
+        // 创建采集器
+        capturer = CaptureFactory::createCapture(captureType, config);
 
         if (!capturer) {
             throw std::runtime_error("Failed to create capturer");
