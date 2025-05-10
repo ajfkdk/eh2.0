@@ -204,23 +204,91 @@ void TestMouseMovement(int targetX, int targetY, int humanizationFactor = 50) {
     mouseController->MoveTo(targetX, targetY);
 }
 
+// 测试鼠标监听功能
+void TestMouseMonitoring() {
+    std::cout << "开始鼠标监听测试..." << std::endl;
+    std::cout << "请分别按下鼠标侧键1和侧键2进行测试" << std::endl;
+    std::cout << "测试将在检测到两个侧键都被按下后结束" << std::endl;
+
+    // 创建鼠标控制器
+    std::unique_ptr<KmboxNetMouseController> mouseController = std::make_unique<KmboxNetMouseController>();
+
+    // 启动监听
+    if (!mouseController->StartMonitor(1000)) {
+        std::cerr << "启动鼠标监听失败，退出测试" << std::endl;
+        return;
+    }
+
+    bool side1Pressed = false;
+    bool side2Pressed = false;
+
+    // 监听循环
+    while (!(side1Pressed && side2Pressed)) {
+        // 检测侧键1
+        if (mouseController->IsSideButton1Down() && !side1Pressed) {
+            std::cout << "检测到鼠标侧键1按下" << std::endl;
+            side1Pressed = true;
+            // 等待松开
+            while (mouseController->IsSideButton1Down()) {
+                Sleep(1);
+            }
+            std::cout << "检测到鼠标侧键1松开" << std::endl;
+        }
+
+        // 检测侧键2
+        if (mouseController->IsSideButton2Down() && !side2Pressed) {
+            std::cout << "检测到鼠标侧键2按下" << std::endl;
+            side2Pressed = true;
+            // 等待松开
+            while (mouseController->IsSideButton2Down()) {
+                Sleep(1);
+            }
+            std::cout << "检测到鼠标侧键2松开" << std::endl;
+        }
+
+        // 避免CPU占用过高
+        Sleep(1);
+    }
+
+    // 停止监听
+    mouseController->StopMonitor();
+    std::cout << "鼠标监听测试完成" << std::endl;
+}
+
 int main() {
     // 设置高优先级和资源分配
     SetHighPriorityAndResources();
 
-    int targetX, targetY, humanFactor;
+    // 测试选项
+    int testOption;
+    std::cout << "请选择测试选项：" << std::endl;
+    std::cout << "1. 测试鼠标移动" << std::endl;
+    std::cout << "2. 测试鼠标监听" << std::endl;
+    std::cin >> testOption;
 
-    std::cout << "输入目标X坐标: ";
-    std::cin >> targetX;
+    if (testOption == 1) {
+        int targetX, targetY, humanFactor;
 
-    std::cout << "输入目标Y坐标: ";
-    std::cin >> targetY;
+        std::cout << "输入目标X坐标: ";
+        std::cin >> targetX;
 
-    std::cout << "输入拟人化因子(1-100): ";
-    std::cin >> humanFactor;
-    humanFactor = std::max(1, std::min(100, humanFactor));
+        std::cout << "输入目标Y坐标: ";
+        std::cin >> targetY;
 
-    // 执行测试
-    TestMouseMovement(targetX, targetY, humanFactor);
+        std::cout << "输入拟人化因子(1-100): ";
+        std::cin >> humanFactor;
+        humanFactor = std::max(1, std::min(100, humanFactor));
+
+        // 执行鼠标移动测试
+        TestMouseMovement(targetX, targetY, humanFactor);
+    }
+    else if (testOption == 2) {
+        // 执行鼠标监听测试
+        TestMouseMonitoring();
+    }
+    else {
+        std::cout << "无效选项" << std::endl;
+    }
+
     return 0;
 }

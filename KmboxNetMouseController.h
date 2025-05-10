@@ -10,6 +10,9 @@ private:
     // 连接状态
     std::atomic<bool> connected;
 
+    // 监听状态
+    std::atomic<bool> monitoring;
+
     // 设备信息
     std::string ip;
     std::string port;
@@ -56,6 +59,28 @@ public:
 
     // 释放鼠标侧键2
     void SideButton2Up() override;
+
+    // 监听相关方法实现
+    // 启动鼠标监听
+    bool StartMonitor(int port = 1000) override;
+
+    // 停止鼠标监听
+    void StopMonitor() override;
+
+    // 检查鼠标左键是否按下
+    bool IsLeftButtonDown() override;
+
+    // 检查鼠标中键是否按下
+    bool IsMiddleButtonDown() override;
+
+    // 检查鼠标右键是否按下
+    bool IsRightButtonDown() override;
+
+    // 检查鼠标侧键1是否按下
+    bool IsSideButton1Down() override;
+
+    // 检查鼠标侧键2是否按下
+    bool IsSideButton2Down() override;
 
     // 检查连接状态
     bool IsConnected() const;

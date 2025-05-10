@@ -38,6 +38,28 @@ public:
 
     // 释放鼠标侧键2
     virtual void SideButton2Up() = 0;
+
+    // 监听相关方法
+    // 启动鼠标监听
+    virtual bool StartMonitor(int port = 1000) = 0;
+
+    // 停止鼠标监听
+    virtual void StopMonitor() = 0;
+
+    // 检查鼠标左键是否按下
+    virtual bool IsLeftButtonDown() = 0;
+
+    // 检查鼠标中键是否按下
+    virtual bool IsMiddleButtonDown() = 0;
+
+    // 检查鼠标右键是否按下
+    virtual bool IsRightButtonDown() = 0;
+
+    // 检查鼠标侧键1是否按下
+    virtual bool IsSideButton1Down() = 0;
+
+    // 检查鼠标侧键2是否按下
+    virtual bool IsSideButton2Down() = 0;
 };
 
 #endif // MOUSE_CONTROLLER_H

@@ -105,3 +105,26 @@ void WindowsMouseController::SideButton2Up() {
     input.mi.mouseData = XBUTTON2;
     SendInput(1, &input, sizeof(INPUT));
 }
+
+bool WindowsMouseController::StartMonitor(int port) {
+	// Windows平台不需要启动监听
+	return true;
+}
+void WindowsMouseController::StopMonitor() {
+	// Windows平台不需要停止监听
+}
+bool WindowsMouseController::IsLeftButtonDown() {
+	return (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+}
+bool WindowsMouseController::IsMiddleButtonDown() {
+	return (GetAsyncKeyState(VK_MBUTTON) & 0x8000) != 0;
+}
+bool WindowsMouseController::IsRightButtonDown() {
+	return (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
+}
+bool WindowsMouseController::IsSideButton1Down() {
+	return (GetAsyncKeyState(VK_XBUTTON1) & 0x8000) != 0;
+}
+bool WindowsMouseController::IsSideButton2Down() {
+	return (GetAsyncKeyState(VK_XBUTTON2) & 0x8000) != 0;
+}

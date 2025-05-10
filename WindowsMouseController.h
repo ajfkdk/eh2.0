@@ -38,6 +38,14 @@ public:
 
     //  Õ∑≈ Û±Í≤‡º¸2
     void SideButton2Up() override;
+
+    bool StartMonitor(int port = 1000) override;
+    void StopMonitor() override;
+    bool IsLeftButtonDown() override;
+    bool IsMiddleButtonDown() override;
+    bool IsRightButtonDown() override;
+    bool IsSideButton1Down() override;
+    bool IsSideButton2Down() override;
 };
 
 #endif // WINDOWS_MOUSE_CONTROLLER_H
