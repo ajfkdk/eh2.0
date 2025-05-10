@@ -32,14 +32,10 @@ namespace PredictionModule {
     // 获取最新预测结果
     bool GetLatestPrediction(PredictionResult& result);
 
-    // 设置g参数 (位置增益)
+    // 这些函数保留为接口兼容，但不再使用
     void SetGFactor(float g);
-
-    // 设置h参数 (速度增益)
     void SetHFactor(float h);
-
-    // 设置预测时间 (秒)
     void SetPredictionTime(float seconds);
 }
 
-#endif // PREDICTION_MODULE_H#pragma once
+#endif // PREDICTION_MODULE_H
