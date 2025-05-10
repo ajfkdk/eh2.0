@@ -117,6 +117,6 @@ void ActionModule::ProcessLoop() {
         }
 
         // 控制循环频率，每5ms执行一次
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 }

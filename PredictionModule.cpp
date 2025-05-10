@@ -143,7 +143,7 @@ namespace PredictionModule {
     }
 
     bool GetLatestPrediction(PredictionResult& result) {
-        return g_predictionBuffer.readLatest(result);
+        return g_predictionBuffer.read(result, true);
     }
 
     // 以下函数保留为接口兼容，但实际上不再使用

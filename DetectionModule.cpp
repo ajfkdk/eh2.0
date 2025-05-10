@@ -65,7 +65,7 @@ void detectionThreadFunc() {
 
          // 从采集模块获取帧
         Frame frame;
-        if (CaptureModule::GetLatestCaptureFrame(frame)) {
+        if (CaptureModule::WaitForFrame(frame)) {
             if (!frame.image.empty()) {
                 // 调整图像大小为320x320
                 cv::Mat resizedImage;
