@@ -31,6 +31,7 @@
     <ClInclude Include="PredictionModule.h" />
     <ClInclude Include="RingBuffer.h" />
     <ClInclude Include="ScreenCaptureWindows.h" />
+    <ClInclude Include="UdpCaptureReceiver.h" />
     <ClInclude Include="WindowsMouseController.h" />
     <ClInclude Include="YOLODetector.h" />
   </ItemGroup>
@@ -44,6 +45,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PredictionModule.cpp" />
     <ClCompile Include="ScreenCaptureWindows.cpp" />
+    <ClCompile Include="UdpCaptureReceiver.cpp" />
     <ClCompile Include="WindowsMouseController.cpp" />
     <ClCompile Include="YOLODetector.cpp" />
   </ItemGroup>

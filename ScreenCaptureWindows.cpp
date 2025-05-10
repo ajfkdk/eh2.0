@@ -3,6 +3,7 @@
 #include "CaptureFactory.h"
 #include "CaptureRegistry.h"
 #include <iostream>
+#include "UdpCaptureReceiver.h"
 
 // ========== 全局变量和结构体定义 ==========
 
@@ -269,6 +270,16 @@ void registerCustomCaptures() {
         }
     );
 
+    // 注册UDP接收采集器
+    CaptureRegistry::registerImplementation("UdpReceiver",
+        [](const CaptureConfig& config) -> std::shared_ptr<IFrameCapture> {
+            auto capture = std::make_shared<UdpCaptureReceiver>();
+            capture->configure(config);
+            capture->initialize();
+            return capture;
+        }
+    );
+
     // 可以在这里注册其他采集实现
 }
 
@@ -374,7 +385,7 @@ namespace CaptureModule {
         config.captureCenter = true;
 
         // 创建采集器
-        capturer = CaptureFactory::createCapture(CaptureType::WINDOWS_SCREEN, config);
+        capturer = CaptureFactory::createCapture(CaptureType::UDP_RECEIVER, config);
 
         if (!capturer) {
             throw std::runtime_error("Failed to create capturer");

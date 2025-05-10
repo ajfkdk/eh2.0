@@ -4,6 +4,9 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <functional>
+#include <WinSock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
 #include <memory>
 
 // ²É¼¯Æ÷×´Ì¬Ã¶¾Ù

@@ -15,6 +15,7 @@ int main() {
     std::thread actionThread;
 
     try {
+
         // 初始化采集模块
         captureThread = CaptureModule::Initialize();
 

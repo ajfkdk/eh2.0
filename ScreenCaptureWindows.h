@@ -2,7 +2,6 @@
 #define SCREEN_CAPTURE_WINDOWS_H
 
 #include "IFrameCapture.h"
-#include <windows.h>
 #include <atomic>
 #include <thread>
 #include <chrono>
