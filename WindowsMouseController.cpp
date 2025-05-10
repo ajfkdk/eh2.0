@@ -69,3 +69,39 @@ void WindowsMouseController::MoveRelative(int deltaX, int deltaY) {
     input.mi.dy = deltaY;
     SendInput(1, &input, sizeof(INPUT));
 }
+
+void WindowsMouseController::SideButton1Down() {
+    // 模拟鼠标侧键1按下 (XBUTTON1)
+    INPUT input = {};
+    input.type = INPUT_MOUSE;
+    input.mi.dwFlags = MOUSEEVENTF_XDOWN;
+    input.mi.mouseData = XBUTTON1;
+    SendInput(1, &input, sizeof(INPUT));
+}
+
+void WindowsMouseController::SideButton1Up() {
+    // 模拟鼠标侧键1释放 (XBUTTON1)
+    INPUT input = {};
+    input.type = INPUT_MOUSE;
+    input.mi.dwFlags = MOUSEEVENTF_XUP;
+    input.mi.mouseData = XBUTTON1;
+    SendInput(1, &input, sizeof(INPUT));
+}
+
+void WindowsMouseController::SideButton2Down() {
+    // 模拟鼠标侧键2按下 (XBUTTON2)
+    INPUT input = {};
+    input.type = INPUT_MOUSE;
+    input.mi.dwFlags = MOUSEEVENTF_XDOWN;
+    input.mi.mouseData = XBUTTON2;
+    SendInput(1, &input, sizeof(INPUT));
+}
+
+void WindowsMouseController::SideButton2Up() {
+    // 模拟鼠标侧键2释放 (XBUTTON2)
+    INPUT input = {};
+    input.type = INPUT_MOUSE;
+    input.mi.dwFlags = MOUSEEVENTF_XUP;
+    input.mi.mouseData = XBUTTON2;
+    SendInput(1, &input, sizeof(INPUT));
+}

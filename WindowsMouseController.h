@@ -26,6 +26,18 @@ public:
 
     // 移动鼠标（相对当前位置）
     void MoveRelative(int deltaX, int deltaY) override;
+
+    // 按下鼠标侧键1
+    void SideButton1Down() override;
+
+    // 释放鼠标侧键1
+    void SideButton1Up() override;
+
+    // 按下鼠标侧键2
+    void SideButton2Down() override;
+
+    // 释放鼠标侧键2
+    void SideButton2Up() override;
 };
 
-#endif // WINDOWS_MOUSE_CONTROLLER_H#pragma once
+#endif // WINDOWS_MOUSE_CONTROLLER_H

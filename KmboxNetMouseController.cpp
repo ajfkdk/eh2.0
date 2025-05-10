@@ -10,7 +10,7 @@ extern "C" {
 KmboxNetMouseController::KmboxNetMouseController(const std::string& deviceIp,
     const std::string& devicePort,
     const std::string& deviceMac)
-    : currentX(0), currentY(0), connected(false), ip(deviceIp), port(devicePort), mac(deviceMac) {
+    : connected(false), ip(deviceIp), port(devicePort), mac(deviceMac) {
 
     // 初始化kmboxNet设备连接
     int result = kmNet_init(const_cast<char*>(ip.c_str()),
@@ -19,12 +19,6 @@ KmboxNetMouseController::KmboxNetMouseController(const std::string& deviceIp,
 
     if (result == 0) {
         connected.store(true);
-        // 初始化时获取当前鼠标位置
-        POINT cursorPos;
-        if (GetCursorPos(&cursorPos)) {
-            currentX.store(cursorPos.x);
-            currentY.store(cursorPos.y);
-        }
         std::cout << "KmboxNet连接成功" << std::endl;
     }
     else {
@@ -49,15 +43,10 @@ void KmboxNetMouseController::MoveTo(int x, int y) {
         int deltaX = x - cursorPos.x;
         int deltaY = y - cursorPos.y;
 
-        // 使用kmboxNet移动鼠标（假设kmNet_mouse_move是相对移动）
+        // 使用kmboxNet移动鼠标
         int result = kmNet_mouse_move(static_cast<short>(deltaX), static_cast<short>(deltaY));
 
-        if (result == 0) {
-            // 更新当前位置
-            currentX.store(x);
-            currentY.store(y);
-        }
-        else {
+        if (result != 0) {
             std::cerr << "KmboxNet移动鼠标失败，错误码: " << result << std::endl;
         }
     }
@@ -69,15 +58,6 @@ void KmboxNetMouseController::GetCurrentPosition(int& x, int& y) {
     if (GetCursorPos(&cursorPos)) {
         x = cursorPos.x;
         y = cursorPos.y;
-
-        // 同步我们存储的位置
-        currentX.store(x);
-        currentY.store(y);
-    }
-    else {
-        // 如果获取失败，返回我们存储的上一次位置
-        x = currentX.load();
-        y = currentY.load();
     }
 }
 
@@ -142,15 +122,56 @@ void KmboxNetMouseController::MoveRelative(int deltaX, int deltaY) {
     // 直接使用相对移动距离
     int result = kmNet_mouse_move(static_cast<short>(deltaX), static_cast<short>(deltaY));
 
-    if (result == 0) {
-        // 更新当前位置
-        int x = currentX.load() + deltaX;
-        int y = currentY.load() + deltaY;
-        currentX.store(x);
-        currentY.store(y);
-    }
-    else {
+    if (result != 0) {
         std::cerr << "KmboxNet相对移动鼠标失败，错误码: " << result << std::endl;
+    }
+}
+
+void KmboxNetMouseController::SideButton1Down() {
+    if (!connected.load()) {
+        std::cerr << "KmboxNet未连接，无法按下鼠标侧键1" << std::endl;
+        return;
+    }
+
+    int result = kmNet_mouse_side1(1); // 1表示按下
+    if (result != 0) {
+        std::cerr << "KmboxNet按下鼠标侧键1失败，错误码: " << result << std::endl;
+    }
+}
+
+void KmboxNetMouseController::SideButton1Up() {
+    if (!connected.load()) {
+        std::cerr << "KmboxNet未连接，无法释放鼠标侧键1" << std::endl;
+        return;
+    }
+
+    int result = kmNet_mouse_side1(0); // 0表示释放
+    if (result != 0) {
+        std::cerr << "KmboxNet释放鼠标侧键1失败，错误码: " << result << std::endl;
+    }
+}
+
+void KmboxNetMouseController::SideButton2Down() {
+    if (!connected.load()) {
+        std::cerr << "KmboxNet未连接，无法按下鼠标侧键2" << std::endl;
+        return;
+    }
+
+    int result = kmNet_mouse_side2(1); // 1表示按下
+    if (result != 0) {
+        std::cerr << "KmboxNet按下鼠标侧键2失败，错误码: " << result << std::endl;
+    }
+}
+
+void KmboxNetMouseController::SideButton2Up() {
+    if (!connected.load()) {
+        std::cerr << "KmboxNet未连接，无法释放鼠标侧键2" << std::endl;
+        return;
+    }
+
+    int result = kmNet_mouse_side2(0); // 0表示释放
+    if (result != 0) {
+        std::cerr << "KmboxNet释放鼠标侧键2失败，错误码: " << result << std::endl;
     }
 }
 
