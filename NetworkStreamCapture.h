@@ -76,7 +76,7 @@ private:
     void receiveLoop();
 
 public:
-    NetworkStreamCapture(int port = 8888);
+    NetworkStreamCapture(int port = 1234);
     ~NetworkStreamCapture();
 
     // IFrameCapture µœ÷
