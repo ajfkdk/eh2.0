@@ -96,15 +96,9 @@ namespace PredictionModule {
                 g_predictionBuffer.write(prediction);
 
                 // debug模式处理 - 向检测模块提供预测点信息
-                if (g_debugMode.load() ) {
-                    if (hadValidTarget) {
-                        // 如果有有效目标，设置预测点
-						DetectionModule::DrawPredictionPoint(prediction.x, prediction.y);
-					}
-					else {
-						// 如果没有有效目标，设置为无效点
-						DetectionModule::DrawPredictionPoint(999, 999);
-                    }
+                if (g_debugMode.load() && hadValidTarget) {
+                    // 调用检测模块的绘制预测点函数
+                    DetectionModule::DrawPredictionPoint(prediction.x, prediction.y);
                 }
             }
             catch (const std::exception& e) {
