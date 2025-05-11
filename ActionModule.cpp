@@ -99,16 +99,12 @@ void ActionModule::ProcessLoop() {
                 int targetX = static_cast<int>(offsetX + prediction.x);
                 int targetY = static_cast<int>(offsetY + prediction.y);
 
-                std::cout << "屏幕分辨率: " << screenWidth << "x" << screenHeight << std::endl;
-                std::cout << "原始预测位置: (" << prediction.x << ", " << prediction.y << ")" << std::endl;
-                std::cout << "转换后的目标位置: (" << targetX << ", " << targetY << ")" << std::endl;
-
+              
                 // 计算从屏幕中心到目标的相对距离
                 float centerToTargetX = static_cast<float>(targetX - screenCenterX);
                 float centerToTargetY = static_cast<float>(targetY - screenCenterY);
 
-                // 计算总距离(用于调试输出)
-                float distance = std::sqrt(centerToTargetX * centerToTargetX + centerToTargetY * centerToTargetY);
+                
 
                 // 归一化移动值到±10范围
                 auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 10.0f);
@@ -118,13 +114,9 @@ void ActionModule::ProcessLoop() {
                     static_cast<int>(normalizedMove.first),
                     static_cast<int>(normalizedMove.second));
 
-                std::cout << "移动鼠标(相对坐标): ("
-                    << normalizedMove.first << ", " << normalizedMove.second
-                    << "), 原始距离: " << distance << std::endl;
+              
             }
         }
 
-        // 控制循环频率，每2ms执行一次
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 }
