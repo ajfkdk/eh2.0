@@ -17,8 +17,6 @@ struct Frame {
 
 // 从CaptureModule导入帧结构体
 namespace CaptureModule {
-  
-
     bool GetLatestCaptureFrame(Frame& frame);
     bool WaitForFrame(Frame& frame);
     bool IsRunning();
@@ -43,6 +41,10 @@ namespace {
     std::atomic<bool> debugMode{ false };
     std::atomic<bool> showDetections{ false };
 
+    // Debug帧
+    std::mutex debugFrameMutex;
+    cv::Mat latestDebugFrame;
+
     // YOLO检测器
     std::unique_ptr<YOLODetector> detector;
 }
@@ -56,14 +58,12 @@ void detectionThreadFunc() {
     //    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
     //#endif
 
-        // 创建计时器用于控制帧率
+    // 创建计时器用于控制帧率
     auto lastProcessTime = std::chrono::high_resolution_clock::now();
-  
 
     // 预测循环
-    while (running.load()) {       
-
-         // 从采集模块获取帧
+    while (running.load()) {
+        // 从采集模块获取帧
         Frame frame;
         if (CaptureModule::GetLatestCaptureFrame(frame)) {
             if (!frame.image.empty()) {
@@ -76,6 +76,39 @@ void detectionThreadFunc() {
 
                 // 进行目标检测
                 std::vector<DetectionResult> results = detector->ProcessImage(resizedImage);
+
+                // 为debug模式准备帧
+                cv::Mat debugFrame;
+                if (debugMode.load() && showDetections.load()) {
+                    debugFrame = resizedImage.clone();
+
+                    // 在debug帧上绘制检测框
+                    for (const auto& result : results) {
+                        // 计算框的左上角坐标
+                        int left = result.x - result.width / 2;
+                        int top = result.y - result.height / 2;
+
+                        // 绘制检测框
+                        cv::rectangle(debugFrame,
+                            cv::Rect(left, top, result.width, result.height),
+                            cv::Scalar(0, 255, 0), 2);
+
+                        // 添加类别和置信度标签
+                        std::string label = result.className + " " +
+                            std::to_string(static_cast<int>(result.confidence * 100)) + "%";
+                        cv::putText(debugFrame, label, cv::Point(left, top - 5),
+                            cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
+                    }
+
+                    // 保存debug帧供其他模块使用
+                    {
+                        std::lock_guard<std::mutex> lock(debugFrameMutex);
+                        debugFrame.copyTo(latestDebugFrame);
+                    }
+
+                    // 显示检测结果
+                    cv::imshow("Detection Debug", debugFrame);
+                }
 
                 // 处理检测结果
                 if (!results.empty()) {
@@ -185,6 +218,19 @@ namespace DetectionModule {
 
     void SetDebugMode(bool enabled) {
         debugMode.store(enabled);
+    }
+
+    bool IsDebugModeEnabled() {
+        return debugMode.load();
+    }
+
+    bool GetDebugFrame(cv::Mat& frame) {
+        std::lock_guard<std::mutex> lock(debugFrameMutex);
+        if (latestDebugFrame.empty()) {
+            return false;
+        }
+        latestDebugFrame.copyTo(frame);
+        return true;
     }
 
     void SetShowDetections(bool show) {

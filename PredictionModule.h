@@ -32,6 +32,12 @@ namespace PredictionModule {
     // 获取最新预测结果
     bool GetLatestPrediction(PredictionResult& result);
 
+    // 设置调试模式
+    void SetDebugMode(bool enabled);
+
+    // 获取调试模式状态
+    bool IsDebugModeEnabled();
+
     // 这些函数保留为接口兼容，但不再使用
     void SetGFactor(float g);
     void SetHFactor(float h);

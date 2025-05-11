@@ -5,6 +5,7 @@
 #include <atomic>
 #include <vector>
 #include "DetectionResult.h"
+#include <opencv2/opencv.hpp>
 
 namespace DetectionModule {
     // 初始化检测模块，返回检测线程
@@ -30,6 +31,12 @@ namespace DetectionModule {
 
     // 设置调试模式
     void SetDebugMode(bool enabled);
+
+    // 检查是否开启了调试模式
+    bool IsDebugModeEnabled();
+
+    // 获取当前debug帧
+    bool GetDebugFrame(cv::Mat& frame);
 
     // 设置是否显示检测框
     void SetShowDetections(bool show);

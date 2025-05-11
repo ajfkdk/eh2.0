@@ -3,10 +3,12 @@
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <opencv2/opencv.hpp>
 
 namespace PredictionModule {
     // 全局变量
     std::atomic<bool> g_running{ false };
+    std::atomic<bool> g_debugMode{ false };
 
     // 预测时间参数 - 为了兼容性保留，但不再使用
     std::atomic<float> g_gFactor{ 0.2f };
@@ -16,6 +18,11 @@ namespace PredictionModule {
     // 环形缓冲区，用于存储预测结果
     constexpr size_t BUFFER_SIZE = 100;
     RingBuffer<PredictionResult, BUFFER_SIZE> g_predictionBuffer;
+
+    // 获取检测模块的debug帧
+    bool GetDetectionDebugFrame(cv::Mat& frame) {
+        return DetectionModule::GetDebugFrame(frame);
+    }
 
     // 查找离屏幕中心最近的目标
     DetectionResult FindNearestTarget(const std::vector<DetectionResult>& targets) {
@@ -92,6 +99,26 @@ namespace PredictionModule {
 
                 // 将预测结果写入环形缓冲区
                 g_predictionBuffer.write(prediction);
+
+                // debug模式处理 - 在检测模块的debug画面上绘制预测点
+                if (g_debugMode.load() && prediction.x != 999 && prediction.y != 999) {
+                    // 首先检查检测模块是否在debug模式下
+                    if (DetectionModule::IsDebugModeEnabled()) {
+                        // 获取当前最新的检测帧
+                        cv::Mat debugFrame;
+                        if (GetDetectionDebugFrame(debugFrame) && !debugFrame.empty()) {
+                            // 画出预测点(蓝色点，半径5像素)
+                            cv::circle(debugFrame, cv::Point(prediction.x, prediction.y), 5, cv::Scalar(255, 0, 0), -1);
+
+                            // 在画面左上角添加文字标注
+                            cv::putText(debugFrame, "Prediction Target", cv::Point(10, 20),
+                                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
+
+                            // 显示带有预测点的frame
+                            cv::imshow("Detection and Prediction Debug", debugFrame);
+                        }
+                    }
+                }
             }
             catch (const std::exception& e) {
                 std::cerr << "Error in prediction module: " << e.what() << std::endl;
@@ -144,6 +171,16 @@ namespace PredictionModule {
 
     bool GetLatestPrediction(PredictionResult& result) {
         return g_predictionBuffer.read(result, true);
+    }
+
+    // 设置调试模式
+    void SetDebugMode(bool enabled) {
+        g_debugMode = enabled;
+    }
+
+    // 获取调试模式状态
+    bool IsDebugModeEnabled() {
+        return g_debugMode.load();
     }
 
     // 以下函数保留为接口兼容，但实际上不再使用
