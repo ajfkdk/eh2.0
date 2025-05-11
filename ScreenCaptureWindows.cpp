@@ -360,7 +360,9 @@ void captureThreadFunc(std::shared_ptr<IFrameCapture> capturer) {
 namespace CaptureModule {
     // 获取最新帧
     bool GetLatestCaptureFrame(Frame& frame) {
-        return frameBuffer.readLatest(frame);
+        bool success = frameBuffer.readLatest(frame);
+        frameBuffer.clear();
+        return success;
     }
 
     // 等待并获取帧

@@ -70,53 +70,56 @@ std::pair<float, float> ActionModule::NormalizeMovement(float x, float y, float 
 void ActionModule::ProcessLoop() {
     // 处理主循环
     while (running.load()) {
-        // 获取最新预测结果
-        PredictionResult prediction;
-        bool hasPrediction = PredictionModule::GetLatestPrediction(prediction);
+        // 只有当鼠标侧键1按下时才进行鼠标移动控制
+        if (mouseController && mouseController->IsSideButton1Down()) {
+            // 获取最新预测结果
+            PredictionResult prediction;
+            bool hasPrediction = PredictionModule::GetLatestPrediction(prediction);
 
-        // 如果有有效预测结果
-        if (hasPrediction && prediction.x != 999 && prediction.y != 999) {
-            // 获取屏幕分辨率
-            int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-            int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+            // 如果有有效预测结果
+            if (hasPrediction && prediction.x != 999 && prediction.y != 999) {
+                // 获取屏幕分辨率
+                int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+                int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
-            // 计算屏幕中心点
-            int screenCenterX = screenWidth / 2;
-            int screenCenterY = screenHeight / 2;
+                // 计算屏幕中心点
+                int screenCenterX = screenWidth / 2;
+                int screenCenterY = screenHeight / 2;
 
-            // 图像中心的左上角偏移到屏幕中心的图像左上角
-            float offsetX = screenCenterX - 320.0f / 2;
-            float offsetY = screenCenterY - 320.0f / 2;
+                // 图像中心的左上角偏移到屏幕中心的图像左上角
+                float offsetX = screenCenterX - 320.0f / 2;
+                float offsetY = screenCenterY - 320.0f / 2;
 
-            // 计算目标坐标
-            int targetX = static_cast<int>(offsetX + prediction.x);
-            int targetY = static_cast<int>(offsetY + prediction.y);
+                // 计算目标坐标
+                int targetX = static_cast<int>(offsetX + prediction.x);
+                int targetY = static_cast<int>(offsetY + prediction.y);
 
-            std::cout << "屏幕分辨率: " << screenWidth << "x" << screenHeight << std::endl;
-            std::cout << "原始预测位置: (" << prediction.x << ", " << prediction.y << ")" << std::endl;
-            std::cout << "转换后的目标位置: (" << targetX << ", " << targetY << ")" << std::endl;
+                std::cout << "屏幕分辨率: " << screenWidth << "x" << screenHeight << std::endl;
+                std::cout << "原始预测位置: (" << prediction.x << ", " << prediction.y << ")" << std::endl;
+                std::cout << "转换后的目标位置: (" << targetX << ", " << targetY << ")" << std::endl;
 
-            // 计算从屏幕中心到目标的相对距离
-            float centerToTargetX = static_cast<float>(targetX - screenCenterX);
-            float centerToTargetY = static_cast<float>(targetY - screenCenterY);
+                // 计算从屏幕中心到目标的相对距离
+                float centerToTargetX = static_cast<float>(targetX - screenCenterX);
+                float centerToTargetY = static_cast<float>(targetY - screenCenterY);
 
-            // 计算总距离(用于调试输出)
-            float distance = std::sqrt(centerToTargetX * centerToTargetX + centerToTargetY * centerToTargetY);
+                // 计算总距离(用于调试输出)
+                float distance = std::sqrt(centerToTargetX * centerToTargetX + centerToTargetY * centerToTargetY);
 
-            // 归一化移动值到±10范围
-            auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 10.0f);
+                // 归一化移动值到±10范围
+                auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 10.0f);
 
-            // 使用KMBOX控制器移动鼠标(相对坐标)
-            mouseController->MoveRelative(
-                static_cast<int>(normalizedMove.first),
-                static_cast<int>(normalizedMove.second));
+                // 使用KMBOX控制器移动鼠标(相对坐标)
+                mouseController->MoveRelative(
+                    static_cast<int>(normalizedMove.first),
+                    static_cast<int>(normalizedMove.second));
 
-            std::cout << "移动鼠标(相对坐标): ("
-                << normalizedMove.first << ", " << normalizedMove.second
-                << "), 原始距离: " << distance << std::endl;
+                std::cout << "移动鼠标(相对坐标): ("
+                    << normalizedMove.first << ", " << normalizedMove.second
+                    << "), 原始距离: " << distance << std::endl;
+            }
         }
 
-        // 控制循环频率，每5ms执行一次
+        // 控制循环频率，每2ms执行一次
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 }
