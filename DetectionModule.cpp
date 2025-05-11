@@ -109,12 +109,18 @@ void detectionThreadFunc() {
                     if (hasPredictionPoint.load()) {
                         int x = predictionPointX.load();
                         int y = predictionPointY.load();
-                        // 画出预测点(蓝色点，半径5像素)
-                        cv::circle(debugFrame, cv::Point(x, y), 5, cv::Scalar(255, 0, 0), -1);
+                        // 如果x和y都不是999，表示有效预测点
+                        if (x != 999 && y != 999) {
 
-                        // 在画面左上角添加文字标注
-                        cv::putText(debugFrame, "Prediction Target", cv::Point(10, 20),
-                            cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
+                            // 画出预测点(蓝色点，半径5像素)
+                            cv::circle(debugFrame, cv::Point(x, y), 5, cv::Scalar(255, 0, 0), -1);
+
+						}
+						else {
+							// 如果是999，表示无效预测点
+							cv::putText(debugFrame, "No valid prediction point", cv::Point(10, 30),
+								cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255), 1);
+						}
                     }
 
                     // 显示检测结果
