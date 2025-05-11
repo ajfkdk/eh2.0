@@ -122,7 +122,7 @@ int main() {
         CaptureModule::SetCaptureDebug(true);
 
         // 可选：设置调试模式和显示检测框
-        DetectionModule::SetDebugMode(false);
+        DetectionModule::SetDebugMode(true);
         DetectionModule::SetShowDetections(true);
 
         // 设置预测模块的调试模式

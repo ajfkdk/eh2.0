@@ -106,8 +106,6 @@ void detectionThreadFunc() {
                         debugFrame.copyTo(latestDebugFrame);
                     }
 
-                    // 显示检测结果
-                    cv::imshow("Detection Debug", debugFrame);
                 }
 
                 // 处理检测结果

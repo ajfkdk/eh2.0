@@ -115,7 +115,7 @@ namespace PredictionModule {
                                 cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
 
                             // 显示带有预测点的frame
-                            cv::imshow("Detection and Prediction Debug", debugFrame);
+                            cv::imshow("Detection Debug", debugFrame);
                         }
                     }
                 }
