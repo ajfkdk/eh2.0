@@ -38,14 +38,22 @@ namespace PredictionModule {
         float minDistance = std::numeric_limits<float>::max();
 
         for (const auto& target : targets) {
-            float dx = target.x - centerX;
-            float dy = target.y - centerY;
-            float distance = std::sqrt(dx * dx + dy * dy);
+            // 只考虑有效的目标（classId >= 0）
+            if (target.classId >= 0) {
+                float dx = target.x - centerX;
+                float dy = target.y - centerY;
+                float distance = std::sqrt(dx * dx + dy * dy);
 
-            if (distance < minDistance) {
-                minDistance = distance;
-                nearest = target;
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearest = target;
+                }
             }
+        }
+
+        // 如果没有找到有效目标，返回无效目标
+        if (minDistance == std::numeric_limits<float>::max()) {
+            nearest.classId = -1;
         }
 
         return nearest;
@@ -54,6 +62,10 @@ namespace PredictionModule {
     // 预测模块工作函数
     void PredictionModuleWorker() {
         std::cout << "Prediction module worker started" << std::endl;
+
+        // 标记上一次是否有目标
+        bool hadValidTarget = false;
+
         while (g_running) {
             try {
                 // 获取所有检测目标
@@ -63,34 +75,28 @@ namespace PredictionModule {
                 PredictionResult prediction;
                 prediction.timestamp = std::chrono::high_resolution_clock::now();
 
-                // 检查是否有有效目标
-                if (!targets.empty()) {
-                    // 查找离中心最近的目标
-                    DetectionResult nearestTarget = FindNearestTarget(targets);
+                // 查找离中心最近的目标
+                DetectionResult nearestTarget = FindNearestTarget(targets);
 
-                    // 如果有有效目标
-                    if (nearestTarget.classId >= 0) {
-                        // 直接使用最近目标的坐标
-                        prediction.x = nearestTarget.x;
-                        prediction.y = nearestTarget.y;
-                    }
-                    else {
-                        // 无效目标，设置为目标丢失
-                        prediction.x = 999;
-                        prediction.y = 999;
-                    }
+                // 如果有有效目标
+                if (nearestTarget.classId >= 0) {
+                    // 直接使用最近目标的坐标
+                    prediction.x = nearestTarget.x;
+                    prediction.y = nearestTarget.y;
+                    hadValidTarget = true;  // 记录有效目标
                 }
                 else {
-                    // 没有目标，设置为目标丢失
+                    // 无效目标，设置为目标丢失
                     prediction.x = 999;
                     prediction.y = 999;
+                    hadValidTarget = false;  // 记录目标丢失
                 }
 
                 // 将预测结果写入环形缓冲区
                 g_predictionBuffer.write(prediction);
 
                 // debug模式处理 - 向检测模块提供预测点信息
-                if (g_debugMode.load() && prediction.x != 999 && prediction.y != 999) {
+                if (g_debugMode.load() && hadValidTarget) {
                     // 调用检测模块的绘制预测点函数
                     DetectionModule::DrawPredictionPoint(prediction.x, prediction.y);
                 }
@@ -99,7 +105,8 @@ namespace PredictionModule {
                 std::cerr << "Error in prediction module: " << e.what() << std::endl;
             }
 
-           
+            // 提供一个短暂的休眠，避免过度消耗CPU资源
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
 
         std::cout << "Prediction module worker stopped" << std::endl;
