@@ -17,6 +17,11 @@ std::thread ActionModule::Initialize() {
         mouseController = std::make_unique<KmboxNetMouseController>();
     }
 
+    // 启动鼠标监听
+    if (mouseController) {
+        mouseController->StartMonitor();
+    }
+
     // 设置运行标志
     running.store(true);
 
