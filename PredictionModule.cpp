@@ -54,13 +54,7 @@ namespace PredictionModule {
     // 预测模块工作函数
     void PredictionModuleWorker() {
         std::cout << "Prediction module worker started" << std::endl;
-
-        // 计算循环间隔时间 (50ms)
-        const auto loopInterval = std::chrono::milliseconds(50);
-
         while (g_running) {
-            auto loopStart = std::chrono::high_resolution_clock::now();
-
             try {
                 // 获取所有检测目标
                 std::vector<DetectionResult> targets = DetectionModule::GetAllResults();
@@ -105,13 +99,7 @@ namespace PredictionModule {
                 std::cerr << "Error in prediction module: " << e.what() << std::endl;
             }
 
-            // 控制循环频率为50ms
-            auto loopEnd = std::chrono::high_resolution_clock::now();
-            auto processingTime = std::chrono::duration_cast<std::chrono::milliseconds>(loopEnd - loopStart);
-
-            if (processingTime < loopInterval) {
-                std::this_thread::sleep_for(loopInterval - processingTime);
-            }
+           
         }
 
         std::cout << "Prediction module worker stopped" << std::endl;
