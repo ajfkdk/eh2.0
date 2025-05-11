@@ -41,6 +41,11 @@ namespace {
     std::atomic<bool> debugMode{ false };
     std::atomic<bool> showDetections{ false };
 
+    // 预测点相关变量
+    std::atomic<bool> hasPredictionPoint{ false };
+    std::atomic<int> predictionPointX{ 0 };
+    std::atomic<int> predictionPointY{ 0 };
+
     // Debug帧
     std::mutex debugFrameMutex;
     cv::Mat latestDebugFrame;
@@ -100,12 +105,20 @@ void detectionThreadFunc() {
                             cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 255, 0), 1);
                     }
 
-                    // 保存debug帧供其他模块使用
-                    {
-                        std::lock_guard<std::mutex> lock(debugFrameMutex);
-                        debugFrame.copyTo(latestDebugFrame);
+                    // 添加预测点的绘制
+                    if (hasPredictionPoint.load()) {
+                        int x = predictionPointX.load();
+                        int y = predictionPointY.load();
+                        // 画出预测点(蓝色点，半径5像素)
+                        cv::circle(debugFrame, cv::Point(x, y), 5, cv::Scalar(255, 0, 0), -1);
+
+                        // 在画面左上角添加文字标注
+                        cv::putText(debugFrame, "Prediction Target", cv::Point(10, 20),
+                            cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
                     }
 
+                    // 显示检测结果
+                    cv::imshow("Detection Debug", debugFrame);
                 }
 
                 // 处理检测结果
@@ -229,6 +242,12 @@ namespace DetectionModule {
         }
         latestDebugFrame.copyTo(frame);
         return true;
+    }
+
+    void DrawPredictionPoint(int x, int y) {
+        predictionPointX.store(x);
+        predictionPointY.store(y);
+        hasPredictionPoint.store(true);
     }
 
     void SetShowDetections(bool show) {

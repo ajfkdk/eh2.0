@@ -43,6 +43,9 @@ namespace DetectionModule {
 
     // 设置置信度阈值
     void SetConfidenceThreshold(float threshold);
+
+    // 添加绘制预测点的函数
+    void DrawPredictionPoint(int x, int y);
 }
 
 #endif // DETECTION_MODULE_H

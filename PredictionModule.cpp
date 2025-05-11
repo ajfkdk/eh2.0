@@ -19,11 +19,6 @@ namespace PredictionModule {
     constexpr size_t BUFFER_SIZE = 100;
     RingBuffer<PredictionResult, BUFFER_SIZE> g_predictionBuffer;
 
-    // 获取检测模块的debug帧
-    bool GetDetectionDebugFrame(cv::Mat& frame) {
-        return DetectionModule::GetDebugFrame(frame);
-    }
-
     // 查找离屏幕中心最近的目标
     DetectionResult FindNearestTarget(const std::vector<DetectionResult>& targets) {
         if (targets.empty()) {
@@ -100,24 +95,10 @@ namespace PredictionModule {
                 // 将预测结果写入环形缓冲区
                 g_predictionBuffer.write(prediction);
 
-                // debug模式处理 - 在检测模块的debug画面上绘制预测点
+                // debug模式处理 - 向检测模块提供预测点信息
                 if (g_debugMode.load() && prediction.x != 999 && prediction.y != 999) {
-                    // 首先检查检测模块是否在debug模式下
-                    if (DetectionModule::IsDebugModeEnabled()) {
-                        // 获取当前最新的检测帧
-                        cv::Mat debugFrame;
-                        if (GetDetectionDebugFrame(debugFrame) && !debugFrame.empty()) {
-                            // 画出预测点(蓝色点，半径5像素)
-                            cv::circle(debugFrame, cv::Point(prediction.x, prediction.y), 5, cv::Scalar(255, 0, 0), -1);
-
-                            // 在画面左上角添加文字标注
-                            cv::putText(debugFrame, "Prediction Target", cv::Point(10, 20),
-                                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(255, 0, 0), 1);
-
-                            // 显示带有预测点的frame
-                            cv::imshow("Detection Debug", debugFrame);
-                        }
-                    }
+                    // 调用检测模块的绘制预测点函数
+                    DetectionModule::DrawPredictionPoint(prediction.x, prediction.y);
                 }
             }
             catch (const std::exception& e) {
