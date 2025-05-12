@@ -146,7 +146,7 @@ namespace PredictionModule {
     }
 
     bool GetLatestPrediction(PredictionResult& result) {
-        return g_predictionBuffer.read(result, true);
+        return g_predictionBuffer.readLatest(result);
     }
 
     // 设置调试模式

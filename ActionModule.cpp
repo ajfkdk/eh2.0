@@ -113,7 +113,7 @@ void ActionModule::ProcessLoop() {
 
                 //// 归一化移动值到±10范围
                 auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 5.0f);
-
+                 
                 // 使用KMBOX控制器移动鼠标(相对坐标)
                 mouseController->MoveRelative(
                     static_cast<int>(normalizedMove.first),

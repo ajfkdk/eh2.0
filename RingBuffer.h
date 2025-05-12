@@ -81,7 +81,7 @@ public:
         size_t latest = (writeIndex == 0) ? Size - 1 : writeIndex - 1;
         item = buffer[latest];
 
-        // 更新计数器(可选，取决于你是否想清空缓冲区)
+        // 更新计数器(清空缓冲区)
         count.store(0);
         readIndex.store(writeIndex.load());
 
