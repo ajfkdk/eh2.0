@@ -4,17 +4,32 @@
 #include <thread>
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include "MouseController.h"
 #include "PredictionModule.h"
+
+// 定义线程安全的共享状态结构体
+struct SharedState {
+    std::atomic<bool> isAutoAimEnabled{ false };
+    std::atomic<bool> isAutoFireEnabled{ false };
+    std::atomic<float> targetDistance{ 999.0f };
+    std::atomic<bool> hasValidTarget{ false };
+    std::mutex mutex;
+};
 
 class ActionModule {
 private:
     static std::thread actionThread;
+    static std::thread fireThread; // 点射控制线程
     static std::atomic<bool> running;
     static std::unique_ptr<MouseController> mouseController;
+    static std::shared_ptr<SharedState> sharedState; // 共享状态
 
-    // 主处理循环
+    // 主处理循环 (自瞄)
     static void ProcessLoop();
+
+    // 点射控制线程函数
+    static void FireControlLoop();
 
     // 归一化移动值到指定范围
     static std::pair<float, float> NormalizeMovement(float x, float y, float maxValue);
@@ -34,9 +49,6 @@ public:
 
     // 设置鼠标控制器
     static void SetMouseController(std::unique_ptr<MouseController> controller);
-    static std::thread fireThread; // 新增的点射线程
-    static void FireControlLoop(); // 新增的点射控制线程函数
-    static std::shared_ptr<SharedState> sharedState; // 新增的共享状态
 };
 
 #endif // ACTION_MODULE_H

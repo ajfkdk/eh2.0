@@ -6,15 +6,6 @@
 #include "PredictionModule.h"
 #include "KmboxNetMouseController.h"
 
-// 线程安全的共享状态结构体
-struct SharedState {
-    std::atomic<bool> isAutoAimEnabled{ false };
-    std::atomic<bool> isAutoFireEnabled{ false };
-    std::atomic<float> targetDistance{ 999.0f };
-    std::atomic<bool> hasValidTarget{ false };
-    std::mutex mutex;
-};
-
 // 静态成员初始化
 std::thread ActionModule::actionThread;
 std::thread ActionModule::fireThread;
