@@ -4,6 +4,7 @@
 #include "MouseController.h"
 #include <atomic>
 #include <string>
+#include <chrono>
 
 class KmboxNetMouseController : public MouseController {
 private:
@@ -17,6 +18,15 @@ private:
     std::string ip;
     std::string port;
     std::string mac;
+
+    // 上次鼠标位置
+    int lastMouseX;
+    int lastMouseY;
+
+    // 鼠标移动检测
+    std::atomic<bool> mouseMoving;
+    std::chrono::steady_clock::time_point lastMoveTime;
+    static constexpr int MOVE_THRESHOLD_MS = 500; // 鼠标静止阈值（毫秒）
 
 public:
     // 构造函数，初始化kmboxNet设备连接
@@ -81,6 +91,12 @@ public:
 
     // 检查鼠标侧键2是否按下
     bool IsSideButton2Down() override;
+
+    // 检查鼠标是否移动
+    bool IsMouseMoving() override;
+
+    // 更新鼠标移动状态
+    void UpdateMouseMovingState();
 
     // 检查连接状态
     bool IsConnected() const;

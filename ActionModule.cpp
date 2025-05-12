@@ -73,55 +73,119 @@ std::pair<float, float> ActionModule::NormalizeMovement(float x, float y, float 
 
 // 动作模块主要的处理循环
 void ActionModule::ProcessLoop() {
+    bool isAutoAimEnabled = false;  // 自瞄功能开关
+    bool isAutoFireEnabled = false; // 自动开火功能开关
+
+    bool prevSideButton1State = false; // 用于检测侧键1状态变化
+    bool prevSideButton2State = false; // 用于检测侧键2状态变化
+
+    auto lastFireTime = std::chrono::steady_clock::now();
+    bool fireState = false; // false表示不开火，true表示开火
+
     // 处理主循环
     while (running.load()) {
-        // 只有当鼠标侧键1按下时才进行鼠标移动控制
-        if (mouseController && mouseController->IsSideButton1Down()) {
-            // 获取最新预测结果
-            PredictionResult prediction;
-            bool hasPrediction = PredictionModule::GetLatestPrediction(prediction);
+        // 处理自瞄开关（侧键1）
+        bool currentSideButton1State = mouseController->IsSideButton1Down();
+        if (currentSideButton1State && !prevSideButton1State) {
+            isAutoAimEnabled = !isAutoAimEnabled; // 切换自瞄状态
+            std::cout << "自瞄功能: " << (isAutoAimEnabled ? "开启" : "关闭") << std::endl;
+        }
+        prevSideButton1State = currentSideButton1State;
 
-            // 如果有有效预测结果
-            if (hasPrediction && prediction.x != 999 && prediction.y != 999) {
-                // 获取屏幕分辨率
-                int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-                int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+        // 处理自动开火开关（侧键2）
+        bool currentSideButton2State = mouseController->IsSideButton2Down();
+        if (currentSideButton2State && !prevSideButton2State) {
+            isAutoFireEnabled = !isAutoFireEnabled; // 切换自动开火状态
 
-                // 计算屏幕中心点
-                int screenCenterX = screenWidth / 2;
-                int screenCenterY = screenHeight / 2;
-
-                // 图像中心的左上角偏移到屏幕中心的图像左上角
-                float offsetX = screenCenterX - 320.0f / 2;
-                float offsetY = screenCenterY - 320.0f / 2;
-
-                // 计算目标坐标
-                int targetX = static_cast<int>(offsetX + prediction.x);
-                int targetY = static_cast<int>(offsetY + prediction.y);
-
-              
-                // 计算从屏幕中心到目标的相对距离
-                float centerToTargetX = static_cast<float>(targetX - screenCenterX);
-                float centerToTargetY = static_cast<float>(targetY - screenCenterY);
-
-                //计算长度，如果长度小于5，则不进行移动
-                float length = std::sqrt(centerToTargetX * centerToTargetX + centerToTargetY * centerToTargetY);
-                if (length < 7.0f) {
-					//std::cout << "length:" << length << std::endl;
-					continue; // 跳过本次循环
-				}
-
-                //// 归一化移动值到±10范围
-                auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 10.0f);
-                 
-                // 使用KMBOX控制器移动鼠标(相对坐标)
-                mouseController->MoveTo(
-                    static_cast<int>(normalizedMove.first),
-                    static_cast<int>(normalizedMove.second));
-                //打印centerToTargetX、centerToTargetY   -->  normalizedMove.first、normalizedMove.second
-                std::cout << "centerToTarget:" << centerToTargetX << ", " << centerToTargetY << " ---> normal:" << "" << normalizedMove.first << ", " << normalizedMove.second << std::endl;
-              
+            // 如果关闭自动开火，确保鼠标左键释放
+            if (!isAutoFireEnabled && mouseController->IsLeftButtonDown()) {
+                mouseController->LeftUp();
+                fireState = false;
             }
+
+            std::cout << "自动开火功能: " << (isAutoFireEnabled ? "开启" : "关闭") << std::endl;
+        }
+        prevSideButton2State = currentSideButton2State;
+
+        // 获取最新预测结果
+        PredictionResult prediction;
+        bool hasPrediction = PredictionModule::GetLatestPrediction(prediction);
+
+        // 如果有有效预测结果
+        if (hasPrediction && prediction.x != 999 && prediction.y != 999) {
+            // 获取屏幕分辨率
+            int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+            int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+            // 计算屏幕中心点
+            int screenCenterX = screenWidth / 2;
+            int screenCenterY = screenHeight / 2;
+
+            // 图像中心的左上角偏移到屏幕中心的图像左上角
+            float offsetX = screenCenterX - 320.0f / 2;
+            float offsetY = screenCenterY - 320.0f / 2;
+
+            // 计算目标坐标
+            int targetX = static_cast<int>(offsetX + prediction.x);
+            int targetY = static_cast<int>(offsetY + prediction.y);
+
+            // 计算从屏幕中心到目标的相对距离
+            float centerToTargetX = static_cast<float>(targetX - screenCenterX);
+            float centerToTargetY = static_cast<float>(targetY - screenCenterY);
+
+            // 计算长度
+            float length = std::sqrt(centerToTargetX * centerToTargetX + centerToTargetY * centerToTargetY);
+
+            // 处理自瞄功能
+            if (isAutoAimEnabled && mouseController && !mouseController->IsMouseMoving()) {
+                if (length >= 7.0f) {
+                    // 归一化移动值到±10范围
+                    auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 10.0f);
+
+                    // 使用控制器移动鼠标(相对坐标)
+                    mouseController->MoveTo(
+                        static_cast<int>(normalizedMove.first),
+                        static_cast<int>(normalizedMove.second));
+
+                    // 打印调试信息
+                    std::cout << "centerToTarget:" << centerToTargetX << ", " << centerToTargetY
+                        << " ---> normal:" << normalizedMove.first << ", " << normalizedMove.second << std::endl;
+                }
+            }
+
+            // 处理自动开火功能
+            if (isAutoFireEnabled) {
+                // 当目标与准星距离小于10像素时，触发自动开火
+                if (length < 10.0f) {
+                    auto currentTime = std::chrono::steady_clock::now();
+                    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        currentTime - lastFireTime).count();
+
+                    if (fireState) { // 当前在开火状态
+                        if (elapsedTime >= 200) { // 开火200ms后
+                            mouseController->LeftUp(); // 释放左键
+                            lastFireTime = currentTime;
+                            fireState = false; // 切换到休息状态
+                        }
+                    }
+                    else { // 当前在休息状态
+                        if (elapsedTime >= 200) { // 休息200ms后
+                            mouseController->LeftDown(); // 按下左键
+                            lastFireTime = currentTime;
+                            fireState = true; // 切换到开火状态
+                        }
+                    }
+                }
+                else if (mouseController->IsLeftButtonDown()) {
+                    mouseController->LeftUp(); // 如果目标距离过远且左键已按下，释放它
+                    fireState = false;
+                }
+            }
+        }
+        else if (isAutoFireEnabled && mouseController->IsLeftButtonDown()) {
+            // 如果没有有效目标但左键已按下，释放它
+            mouseController->LeftUp();
+            fireState = false;
         }
 
     }

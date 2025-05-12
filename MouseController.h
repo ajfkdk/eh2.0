@@ -60,6 +60,9 @@ public:
 
     // 检查鼠标侧键2是否按下
     virtual bool IsSideButton2Down() = 0;
+
+    // 检查鼠标是否移动
+    virtual bool IsMouseMoving() = 0;
 };
 
 #endif // MOUSE_CONTROLLER_H
