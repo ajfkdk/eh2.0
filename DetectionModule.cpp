@@ -58,14 +58,6 @@ namespace {
 void detectionThreadFunc() {
     std::cout << "Detection thread started" << std::endl;
 
-    ////    // 设置线程优先级
-    //#ifdef _WIN32
-    //    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
-    //#endif
-
-    // 创建计时器用于控制帧率
-    auto lastProcessTime = std::chrono::high_resolution_clock::now();
-
     // 预测循环
     while (running.load()) {
         // 从采集模块获取帧
@@ -143,27 +135,7 @@ void detectionThreadFunc() {
                     std::vector<DetectionResult> emptyResults;
                     multiResultBuffer.write(emptyResults);
                 }
-
-                // 处理结束时间
-                auto end = std::chrono::high_resolution_clock::now();
-                lastProcessTime = end;
-
-                // 如果开启调试模式，输出处理时间
-                if (debugMode.load()) {
-                    std::chrono::duration<double, std::milli> elapsed = end - start;
-                    std::cout << "Detection time: " << elapsed.count() << " ms" << std::endl;
-
-                    if (!results.empty()) {
-                        std::cout << "Detected " << results.size() << " objects:" << std::endl;
-                        for (const auto& r : results) {
-                            std::cout << "  - " << r.className << " at (" << r.x << "," << r.y
-                                << ") conf: " << r.confidence << std::endl;
-                        }
-                    }
-                    else {
-                        std::cout << "No objects detected" << std::endl;
-                    }
-                }
+            
             }
         }
         else {

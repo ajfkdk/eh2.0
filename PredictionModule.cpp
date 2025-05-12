@@ -36,10 +36,10 @@ namespace PredictionModule {
         // 查找最近的目标
         DetectionResult nearest = targets[0];
         float minDistance = std::numeric_limits<float>::max();
-
+        //std::vector<std::string> classes{ "ct_body", "ct_head", "t_body", "t_head" };
         for (const auto& target : targets) {
-            // 只考虑有效的目标（classId >= 0）
-            if (target.classId >= 0) {
+            // 只考虑有效的目标（classId =1 , 3) 锁头
+            if (target.classId >= 0&&(target.classId == 1 || target.classId == 3)) {
                 float dx = target.x - centerX;
                 float dy = target.y - centerY;
                 float distance = std::sqrt(dx * dx + dy * dy);

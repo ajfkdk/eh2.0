@@ -104,16 +104,22 @@ void ActionModule::ProcessLoop() {
                 float centerToTargetX = static_cast<float>(targetX - screenCenterX);
                 float centerToTargetY = static_cast<float>(targetY - screenCenterY);
 
-                
+                //计算长度，如果长度小于5，则不进行移动
+                float length = std::sqrt(centerToTargetX * centerToTargetX + centerToTargetY * centerToTargetY);
+                if (length < 5.0f) {
+					//std::cout << "length:" << length << std::endl;
+					continue; // 跳过本次循环
+				}
 
                 //// 归一化移动值到±10范围
-                //auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 5.0f);
+                auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 5.0f);
 
                 // 使用KMBOX控制器移动鼠标(相对坐标)
-                mouseController->MoveTo(
-                    static_cast<int>(centerToTargetX),
-                    static_cast<int>(centerToTargetY));
-
+                mouseController->MoveRelative(
+                    static_cast<int>(normalizedMove.first),
+                    static_cast<int>(normalizedMove.second));
+                //打印centerToTargetX、centerToTargetY   -->  normalizedMove.first、normalizedMove.second
+                std::cout << "centerToTarget:" << centerToTargetX << ", " << centerToTargetY << " ---> normal:" << "" << normalizedMove.first << ", " << normalizedMove.second << std::endl;
               
             }
         }
