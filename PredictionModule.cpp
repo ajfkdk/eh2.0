@@ -105,8 +105,7 @@ namespace PredictionModule {
                 std::cerr << "Error in prediction module: " << e.what() << std::endl;
             }
 
-            // 提供一个短暂的休眠，避免过度消耗CPU资源
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+           
         }
 
         std::cout << "Prediction module worker stopped" << std::endl;
