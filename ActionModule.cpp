@@ -2,13 +2,25 @@
 #include <iostream>
 #include <cmath>
 #include <Windows.h>
+#include <random>
 #include "PredictionModule.h"
 #include "KmboxNetMouseController.h"
 
+// 线程安全的共享状态结构体
+struct SharedState {
+    std::atomic<bool> isAutoAimEnabled{ false };
+    std::atomic<bool> isAutoFireEnabled{ false };
+    std::atomic<float> targetDistance{ 999.0f };
+    std::atomic<bool> hasValidTarget{ false };
+    std::mutex mutex;
+};
+
 // 静态成员初始化
 std::thread ActionModule::actionThread;
+std::thread ActionModule::fireThread;
 std::atomic<bool> ActionModule::running(false);
 std::unique_ptr<MouseController> ActionModule::mouseController = nullptr;
+std::shared_ptr<SharedState> ActionModule::sharedState = std::make_shared<SharedState>();
 
 std::thread ActionModule::Initialize() {
     // 如果没有设置鼠标控制器，使用Windows默认实现
@@ -25,10 +37,13 @@ std::thread ActionModule::Initialize() {
     // 设置运行标志
     running.store(true);
 
-    // 启动处理线程
+    // 启动自瞄处理线程
     actionThread = std::thread(ProcessLoop);
 
-    // 返回线程对象 (使用std::move转移所有权)
+    // 启动点射控制线程
+    fireThread = std::thread(FireControlLoop);
+
+    // 返回主线程对象 (使用std::move转移所有权)
     return std::move(actionThread);
 }
 
@@ -39,6 +54,10 @@ void ActionModule::Cleanup() {
     // 等待线程结束
     if (actionThread.joinable()) {
         actionThread.join();
+    }
+
+    if (fireThread.joinable()) {
+        fireThread.join();
     }
 }
 
@@ -71,39 +90,28 @@ std::pair<float, float> ActionModule::NormalizeMovement(float x, float y, float 
     return { x * factor, y * factor };
 }
 
-// 动作模块主要的处理循环
+// 自瞄线程 - 负责处理自瞄和更新目标状态
 void ActionModule::ProcessLoop() {
-    bool isAutoAimEnabled = false;  // 自瞄功能开关
-    bool isAutoFireEnabled = false; // 自动开火功能开关
-
     bool prevSideButton1State = false; // 用于检测侧键1状态变化
     bool prevSideButton2State = false; // 用于检测侧键2状态变化
-
-    auto lastFireTime = std::chrono::steady_clock::now();
-    bool fireState = false; // false表示不开火，true表示开火
 
     // 处理主循环
     while (running.load()) {
         // 处理自瞄开关（侧键1）
         bool currentSideButton1State = mouseController->IsSideButton1Down();
         if (currentSideButton1State && !prevSideButton1State) {
-            isAutoAimEnabled = !isAutoAimEnabled; // 切换自瞄状态
-            std::cout << "自瞄功能: " << (isAutoAimEnabled ? "开启" : "关闭") << std::endl;
+            sharedState->isAutoAimEnabled = !sharedState->isAutoAimEnabled; // 切换自瞄状态
+            std::cout << "自瞄功能: " << (sharedState->isAutoAimEnabled ? "开启" : "关闭") << std::endl;
         }
         prevSideButton1State = currentSideButton1State;
 
         // 处理自动开火开关（侧键2）
         bool currentSideButton2State = mouseController->IsSideButton2Down();
         if (currentSideButton2State && !prevSideButton2State) {
-            isAutoFireEnabled = !isAutoFireEnabled; // 切换自动开火状态
+            bool newState = !sharedState->isAutoFireEnabled.load();
+            sharedState->isAutoFireEnabled = newState; // 切换自动开火状态
 
-            // 如果关闭自动开火，确保鼠标左键释放
-            if (!isAutoFireEnabled && mouseController->IsLeftButtonDown()) {
-                mouseController->LeftUp();
-                fireState = false;
-            }
-
-            std::cout << "自动开火功能: " << (isAutoFireEnabled ? "开启" : "关闭") << std::endl;
+            std::cout << "自动开火功能: " << (newState ? "开启" : "关闭") << std::endl;
         }
         prevSideButton2State = currentSideButton2State;
 
@@ -136,8 +144,12 @@ void ActionModule::ProcessLoop() {
             // 计算长度
             float length = std::sqrt(centerToTargetX * centerToTargetX + centerToTargetY * centerToTargetY);
 
+            // 更新目标距离到共享状态
+            sharedState->targetDistance = length;
+            sharedState->hasValidTarget = true;
+
             // 处理自瞄功能
-            if (isAutoAimEnabled && mouseController && !mouseController->IsMouseMoving()) {
+            if (sharedState->isAutoAimEnabled && mouseController && !mouseController->IsMouseMoving()) {
                 if (length >= 7.0f) {
                     // 归一化移动值到±10范围
                     auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 10.0f);
@@ -152,41 +164,124 @@ void ActionModule::ProcessLoop() {
                         << " ---> normal:" << normalizedMove.first << ", " << normalizedMove.second << std::endl;
                 }
             }
+        }
+        else {
+            // 没有有效目标
+            sharedState->hasValidTarget = false;
+            sharedState->targetDistance = 999.0f;
+        }
+    }
+}
 
-            // 处理自动开火功能
-            if (isAutoFireEnabled) {
-                // 当目标与准星距离小于10像素时，触发自动开火
-                if (length < 10.0f) {
-                    auto currentTime = std::chrono::steady_clock::now();
-                    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        currentTime - lastFireTime).count();
+// 点射控制线程 - 负责控制开火行为
+void ActionModule::FireControlLoop() {
+    // 点射状态机状态
+    enum class FireState {
+        IDLE,           // 空闲状态
+        BURST_ACTIVE,   // 点射激活状态
+        BURST_COOLDOWN  // 点射冷却状态
+    };
 
-                    if (fireState) { // 当前在开火状态
-                        if (elapsedTime >= 200) { // 开火200ms后
-                            mouseController->LeftUp(); // 释放左键
-                            lastFireTime = currentTime;
-                            fireState = false; // 切换到休息状态
-                        }
+    FireState currentState = FireState::IDLE;
+
+    // 随机数生成器
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // 点射持续时间分布 (80ms-150ms)
+    std::uniform_int_distribution<> burstDuration(80, 150);
+
+    // 点射冷却时间分布 (180ms-400ms)
+    std::uniform_int_distribution<> burstCooldown(180, 400);
+
+    // 点射间短暂停顿 (20ms-50ms)
+    std::uniform_int_distribution<> microPause(20, 50);
+
+    auto lastStateChangeTime = std::chrono::steady_clock::now();
+    int currentDuration = 0;
+
+    while (running.load()) {
+        auto currentTime = std::chrono::steady_clock::now();
+        auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+            currentTime - lastStateChangeTime).count();
+
+        // 获取当前共享状态
+        bool autoFireEnabled = sharedState->isAutoFireEnabled.load();
+        bool hasValidTarget = sharedState->hasValidTarget.load();
+        float targetDistance = sharedState->targetDistance.load();
+
+        // 如果自动开火关闭，确保鼠标释放并重置状态
+        if (!autoFireEnabled) {
+            if (mouseController->IsLeftButtonDown()) {
+                mouseController->LeftUp();
+            }
+            currentState = FireState::IDLE;
+            Sleep(50); // 减少CPU使用
+            continue;
+        }
+
+        // 状态机逻辑
+        switch (currentState) {
+        case FireState::IDLE:
+            // 从空闲状态转为点射状态的条件
+            if (autoFireEnabled && hasValidTarget && targetDistance < 10.0f) {
+                mouseController->LeftDown();
+                currentState = FireState::BURST_ACTIVE;
+                currentDuration = burstDuration(gen); // 随机点射持续时间
+                lastStateChangeTime = currentTime;
+                std::cout << "开始点射，持续: " << currentDuration << "ms" << std::endl;
+            }
+            else {
+                Sleep(10); // 减少CPU使用
+            }
+            break;
+
+        case FireState::BURST_ACTIVE:
+            // 点射持续时间结束
+            if (elapsedTime >= currentDuration) {
+                mouseController->LeftUp();
+                currentState = FireState::BURST_COOLDOWN;
+                currentDuration = burstCooldown(gen); // 随机冷却时间
+                lastStateChangeTime = currentTime;
+                std::cout << "点射结束，冷却: " << currentDuration << "ms" << std::endl;
+            }
+            // 如果目标无效或距离过远，立即停止点射
+            else if (!hasValidTarget || targetDistance >= 10.0f) {
+                mouseController->LeftUp();
+                currentState = FireState::IDLE;
+                std::cout << "目标丢失，停止点射" << std::endl;
+            }
+            break;
+
+        case FireState::BURST_COOLDOWN:
+            // 冷却时间结束
+            if (elapsedTime >= currentDuration) {
+                // 如果目标仍然有效且在范围内，开始新一轮点射
+                if (hasValidTarget && targetDistance < 10.0f) {
+                    // 有小概率插入短暂停顿，增加拟人性
+                    if (gen() % 3 == 0) { // 约33%的概率
+                        Sleep(microPause(gen));
                     }
-                    else { // 当前在休息状态
-                        if (elapsedTime >= 200) { // 休息200ms后
-                            mouseController->LeftDown(); // 按下左键
-                            lastFireTime = currentTime;
-                            fireState = true; // 切换到开火状态
-                        }
-                    }
+
+                    mouseController->LeftDown();
+                    currentState = FireState::BURST_ACTIVE;
+                    currentDuration = burstDuration(gen);
+                    lastStateChangeTime = currentTime;
+                    std::cout << "开始新点射，持续: " << currentDuration << "ms" << std::endl;
                 }
-                else if (mouseController->IsLeftButtonDown()) {
-                    mouseController->LeftUp(); // 如果目标距离过远且左键已按下，释放它
-                    fireState = false;
+                else {
+                    currentState = FireState::IDLE;
                 }
             }
-        }
-        else if (isAutoFireEnabled && mouseController->IsLeftButtonDown()) {
-            // 如果没有有效目标但左键已按下，释放它
-            mouseController->LeftUp();
-            fireState = false;
+            break;
         }
 
+        // 短暂睡眠，降低CPU使用率
+        Sleep(5);
+    }
+
+    // 确保退出时释放鼠标按键
+    if (mouseController->IsLeftButtonDown()) {
+        mouseController->LeftUp();
     }
 }

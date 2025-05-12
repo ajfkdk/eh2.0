@@ -34,6 +34,9 @@ public:
 
     // 设置鼠标控制器
     static void SetMouseController(std::unique_ptr<MouseController> controller);
+    static std::thread fireThread; // 新增的点射线程
+    static void FireControlLoop(); // 新增的点射控制线程函数
+    static std::shared_ptr<SharedState> sharedState; // 新增的共享状态
 };
 
 #endif // ACTION_MODULE_H
