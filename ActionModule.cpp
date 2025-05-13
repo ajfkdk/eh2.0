@@ -128,7 +128,7 @@ void ActionModule::HandleKeyPress(int key) {
 
     switch (key) {
     case 'Q':
-        kp = std::max(0.0f, kp - pStep);
+        kp =max(0.0f, kp - pStep);
         pidController.kp.store(kp);
         std::cout << "Kp 调整为: " << kp << std::endl;
         break;
@@ -138,7 +138,7 @@ void ActionModule::HandleKeyPress(int key) {
         std::cout << "Kp 调整为: " << kp << std::endl;
         break;
     case 'A':
-        ki = std::max(0.0f, ki - iStep);
+        ki = max(0.0f, ki - iStep);
         pidController.ki.store(ki);
         std::cout << "Ki 调整为: " << ki << std::endl;
         break;
@@ -148,7 +148,7 @@ void ActionModule::HandleKeyPress(int key) {
         std::cout << "Ki 调整为: " << ki << std::endl;
         break;
     case 'Z':
-        kd = std::max(0.0f, kd - dStep);
+        kd = max(0.0f, kd - dStep);
         pidController.kd.store(kd);
         std::cout << "Kd 调整为: " << kd << std::endl;
         break;
@@ -207,10 +207,10 @@ std::pair<float, float> ActionModule::ApplyPIDControl(float errorX, float errorY
     pidController.integralY += errorY * dt;
 
     // 积分限制
-    pidController.integralX = std::max(-pidController.integralLimit,
-        std::min(pidController.integralX, pidController.integralLimit));
-    pidController.integralY = std::max(-pidController.integralLimit,
-        std::min(pidController.integralY, pidController.integralLimit));
+    pidController.integralX = max(-pidController.integralLimit,
+        min(pidController.integralX, pidController.integralLimit));
+    pidController.integralY = (-pidController.integralLimit,
+        min(pidController.integralY, pidController.integralLimit));
 
     // 计算PID输出
     float outputX = kp * errorX + ki * pidController.integralX + kd * derivativeX;
