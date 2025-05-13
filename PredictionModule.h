@@ -38,7 +38,16 @@ namespace PredictionModule {
     // 获取调试模式状态
     bool IsDebugModeEnabled();
 
-    // 这些函数保留为接口兼容，但不再使用
+    // 新增：设置位置变化阈值
+    void SetPositionThreshold(float threshold);
+
+    // 新增：设置稳定性时间阈值
+    void SetStabilityTimeThreshold(int milliseconds);
+
+    // 新增：设置平滑因子
+    void SetSmoothingFactor(float factor);
+
+    // 这些函数保留为接口兼容，但实际上不再使用
     void SetGFactor(float g);
     void SetHFactor(float h);
     void SetPredictionTime(float seconds);
