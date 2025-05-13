@@ -84,6 +84,7 @@ void SetThreadHighPriority(std::thread& thread) {
     }
 }
 
+// 在main函数中添加以下代码，PID调试功能的启用
 int main() {
     // 设置高优先级和资源分配
     if (!SetHighPriorityAndResources()) {
@@ -126,7 +127,10 @@ int main() {
         DetectionModule::SetShowDetections(true);
 
         // 设置预测模块的调试模式
-        PredictionModule::SetDebugMode(true);  // 添加这一行启用预测调试
+        PredictionModule::SetDebugMode(true);
+
+        // 启用PID调试功能（如需要）
+        ActionModule::EnablePIDDebug(true);  // 添加这行
 
         // 禁用Windows定时器调度，减少系统干扰
         timeBeginPeriod(1);
