@@ -294,7 +294,7 @@ void ActionModule::ProcessLoop() {
                     auto pidOutput = ApplyPIDControl(centerToTargetX, centerToTargetY);
 
                     // 归一化移动值到±10范围
-                    auto normalizedMove = NormalizeMovement(pidOutput.first, pidOutput.second, 10.0f);
+                    auto normalizedMove = NormalizeMovement(pidOutput.first, pidOutput.second, 20.0f);
 
                     // 使用控制器移动鼠标(相对坐标)
                     mouseController->MoveTo(

@@ -21,9 +21,9 @@ struct SharedState {
 // PID控制器结构体
 struct PIDController {
     // PID参数
-    std::atomic<float> kp{ 0.3f };  // 比例系数
-    std::atomic<float> ki{ 0.05f }; // 积分系数
-    std::atomic<float> kd{ 0.1f };  // 微分系数
+    std::atomic<float> kp{ 0.5f };  // 比例系数
+    std::atomic<float> ki{ 0.1f }; // 积分系数
+    std::atomic<float> kd{ 0.0f };  // 微分系数
 
     // 积分项限制
     float integralLimit = 10.0f;
