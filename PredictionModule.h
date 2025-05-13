@@ -6,6 +6,7 @@
 #include <atomic>
 #include <chrono>
 #include <string>
+#include <deque>
 #include "DetectionModule.h" // 引入DetectionResult结构
 #include "RingBuffer.h" // 引入环形缓冲区
 
@@ -31,6 +32,24 @@ namespace PredictionModule {
 
     // 获取最新预测结果
     bool GetLatestPrediction(PredictionResult& result);
+
+    // 设置滑动窗口大小（保存的历史帧数量）
+    void SetWindowSize(int size);
+
+    // 获取滑动窗口大小
+    int GetWindowSize();
+
+    // 设置目标锁定的距离阈值（超过此阈值被视为新目标）
+    void SetDistanceThreshold(float threshold);
+
+    // 获取距离阈值
+    float GetDistanceThreshold();
+
+    // 设置目标丢失容忍帧数（多少帧不再出现才视为丢失）
+    void SetLostFrameThreshold(int frames);
+
+    // 获取目标丢失容忍帧数
+    int GetLostFrameThreshold();
 
     // 设置调试模式
     void SetDebugMode(bool enabled);
