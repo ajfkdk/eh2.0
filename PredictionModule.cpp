@@ -9,7 +9,11 @@ namespace PredictionModule {
     // 全局变量
     std::atomic<bool> g_running{ false };
     std::atomic<bool> g_debugMode{ false };
-
+    // 在PredictionModule命名空间添加全局变量
+    std::atomic<int> g_currentTargetClassId{ -1 };  // 当前跟踪的目标类别ID
+    std::atomic<int> g_currentTargetId{ -1 };       // 当前跟踪的目标ID (使用在检测中的索引)
+    std::chrono::steady_clock::time_point g_lastTargetSwitchTime;  // 上次切换目标的时间
+    std::atomic<int> g_targetSwitchCooldownMs{ 500 };  // 目标切换冷却时间(毫秒)
     // 预测时间参数 - 为了兼容性保留，但不再使用
     std::atomic<float> g_gFactor{ 0.2f };
     std::atomic<float> g_hFactor{ 0.16f };
@@ -22,6 +26,10 @@ namespace PredictionModule {
     // 查找离屏幕中心最近的目标
     DetectionResult FindNearestTarget(const std::vector<DetectionResult>& targets) {
         if (targets.empty()) {
+            // 无目标时重置当前目标
+            g_currentTargetId = -1;
+            g_currentTargetClassId = -1;
+
             DetectionResult emptyResult;
             emptyResult.classId = -1;
             emptyResult.x = 0;
@@ -29,17 +37,42 @@ namespace PredictionModule {
             return emptyResult;
         }
 
-        // 屏幕中心坐标 (基于320x320的图像)
+        // 屏幕中心坐标
         const int centerX = 160;
         const int centerY = 160;
 
-        // 查找最近的目标
+        // 当前时间
+        auto currentTime = std::chrono::steady_clock::now();
+
+        // 尝试在新目标中找到当前正在跟踪的目标
+        int currentTargetIdx = -1;
+        if (g_currentTargetId >= 0 && g_currentTargetClassId >= 0) {
+            for (int i = 0; i < targets.size(); i++) {
+                // 这里可以添加更复杂的目标匹配逻辑，比如使用目标的位置和大小
+                if (targets[i].classId == g_currentTargetClassId) {
+                    // 简单匹配：找到相同类别的目标
+                    currentTargetIdx = i;
+                    break;
+                }
+            }
+        }
+
+        // 如果找到当前目标，且未超过冷却时间，继续跟踪当前目标
+        if (currentTargetIdx >= 0 &&
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                currentTime - g_lastTargetSwitchTime).count() < g_targetSwitchCooldownMs) {
+            return targets[currentTargetIdx];
+        }
+
+        // 否则，找最近的新目标
         DetectionResult nearest = targets[0];
         float minDistance = std::numeric_limits<float>::max();
-        //std::vector<std::string> classes{ "ct_body", "ct_head", "t_body", "t_head" };
-        for (const auto& target : targets) {
-            // 只考虑有效的目标（classId =1 , 3) 锁头
-            if (target.classId >= 0&&(target.classId == 1 || target.classId == 3)) {
+        int nearestIdx = -1;
+
+        for (int i = 0; i < targets.size(); i++) {
+            const auto& target = targets[i];
+            // 只考虑有效的目标（classId = 1 或 3) 锁头
+            if (target.classId >= 0 && (target.classId == 1 || target.classId == 3)) {
                 float dx = target.x - centerX;
                 float dy = target.y - centerY;
                 float distance = std::sqrt(dx * dx + dy * dy);
@@ -47,13 +80,24 @@ namespace PredictionModule {
                 if (distance < minDistance) {
                     minDistance = distance;
                     nearest = target;
+                    nearestIdx = i;
                 }
             }
         }
 
-        // 如果没有找到有效目标，返回无效目标
-        if (minDistance == std::numeric_limits<float>::max()) {
+        // 如果找到了新目标，更新当前目标信息和切换时间
+        if (nearestIdx >= 0 && nearest.classId >= 0) {
+            if (nearestIdx != currentTargetIdx) {
+                g_currentTargetId = nearestIdx;
+                g_currentTargetClassId = nearest.classId;
+                g_lastTargetSwitchTime = currentTime;
+            }
+        }
+        else {
+            // 没有找到有效目标
             nearest.classId = -1;
+            g_currentTargetId = -1;
+            g_currentTargetClassId = -1;
         }
 
         return nearest;
