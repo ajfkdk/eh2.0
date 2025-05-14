@@ -186,10 +186,7 @@ void ActionModule::ProcessLoop() {
                     // 在移动层面上进行简单预测
                     Point2D predictedTarget = PredictNextPosition(currentTarget);
 
-                    // 对x、y都进行随机偏移，增加拟人化
-                    // 随机偏移-2到2
-                    predictedTarget.x += (rand() % 5 - 2);
-                    predictedTarget.y += (rand() % 5 - 2);
+              
 
                     // 使用控制器移动鼠标(相对坐标)
                     mouseController->MoveToWithTime(
