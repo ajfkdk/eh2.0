@@ -12,7 +12,7 @@ std::thread ActionModule::fireThread;
 std::atomic<bool> ActionModule::running(false);
 std::unique_ptr<MouseController> ActionModule::mouseController = nullptr;
 std::shared_ptr<SharedState> ActionModule::sharedState = std::make_shared<SharedState>();
-
+std::atomic<int> ActionModule::smoothTimeAlpha = 2; // 丝滑时间倍率
 std::thread ActionModule::Initialize() {
     // 如果没有设置鼠标控制器，使用Windows默认实现
     if (!mouseController) {
@@ -146,13 +146,12 @@ void ActionModule::ProcessLoop() {
                     auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 10.0f);
 
                     // 使用控制器移动鼠标(相对坐标)
-                    mouseController->MoveTo(
+                    mouseController->MoveToWithTime(
                         static_cast<int>(normalizedMove.first),
-                        static_cast<int>(normalizedMove.second));
+                        static_cast<int>(normalizedMove.second),
+                        smoothTimeAlpha*length);// 距离乘以丝滑时间倍率
 
-                    // 打印调试信息
-                    std::cout << "centerToTarget:" << centerToTargetX << ", " << centerToTargetY
-                        << " ---> normal:" << normalizedMove.first << ", " << normalizedMove.second << std::endl;
+                  
                 }
             }
         }

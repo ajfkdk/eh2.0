@@ -1,7 +1,7 @@
 #include "WindowsMouseController.h"
 #include <Windows.h>
 
-void WindowsMouseController::MoveTo(int x, int y) {
+void WindowsMouseController::MoveToWithTime(int x, int y,int during) {
     // 设置鼠标的绝对位置
     SetCursorPos(x, y);
 }

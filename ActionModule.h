@@ -24,7 +24,8 @@ private:
     static std::atomic<bool> running;
     static std::unique_ptr<MouseController> mouseController;
     static std::shared_ptr<SharedState> sharedState; // 共享状态
-
+    // 丝滑时间
+    static std::atomic<int> smoothTimeAlpha;
     // 主处理循环 (自瞄)
     static void ProcessLoop();
 
