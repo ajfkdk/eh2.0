@@ -312,7 +312,7 @@ void ActionModule::ProcessLoop() {
         // 获取最新预测结果
         PredictionResult prediction;
         bool hasPrediction = PredictionModule::GetLatestPrediction(prediction);
-
+        std::cout<< "获取预测结果: " << prediction.x << ", " << prediction.y << "hasPrediction:"<< hasPrediction << "| sharedState->targetDistance :"<< sharedState->targetDistance <<"|sharedState->hasValidTarget:"<< sharedState->hasValidTarget << std::endl;
         // 如果有有效预测结果
         if (hasPrediction && prediction.x != 999 && prediction.y != 999) {
             // 获取屏幕分辨率
