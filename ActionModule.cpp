@@ -13,6 +13,11 @@ std::atomic<bool> ActionModule::running(false);
 std::unique_ptr<MouseController> ActionModule::mouseController = nullptr;
 std::shared_ptr<SharedState> ActionModule::sharedState = std::make_shared<SharedState>();
 
+// 预测调控参数
+float ActionModule::predictAlpha = 0.3f; // 默认值设为0.3，在0.2~0.5范围内
+Point2D ActionModule::lastTargetPos = { 0, 0 }; // 上一帧目标位置
+bool ActionModule::hasLastTarget = false; // 是否有上一帧目标位置
+
 std::thread ActionModule::Initialize() {
     // 如果没有设置鼠标控制器，使用Windows默认实现
     if (!mouseController) {
@@ -64,6 +69,14 @@ void ActionModule::SetMouseController(std::unique_ptr<MouseController> controlle
     mouseController = std::move(controller);
 }
 
+// 设置预测系数
+void ActionModule::SetPredictAlpha(float alpha) {
+    if (alpha >= 0.0f && alpha <= 1.0f) {
+        predictAlpha = alpha;
+        std::cout << "预测系数已设置为: " << alpha << std::endl;
+    }
+}
+
 // 归一化移动值到指定范围
 std::pair<float, float> ActionModule::NormalizeMovement(float x, float y, float maxValue) {
     // 计算向量长度
@@ -79,6 +92,27 @@ std::pair<float, float> ActionModule::NormalizeMovement(float x, float y, float 
 
     // 返回归一化后的值
     return { x * factor, y * factor };
+}
+
+// 预测目标下一帧位置
+Point2D ActionModule::PredictNextPosition(const Point2D& current) {
+    // 如果没有上一帧位置，无法预测，直接返回当前位置
+    if (!hasLastTarget) {
+        hasLastTarget = true;
+        lastTargetPos = current;
+        return current;
+    }
+
+    // 使用简单线性预测: predicted = current + (current - last) * alpha
+    Point2D predicted;
+    predicted.x = current.x + (current.x - lastTargetPos.x) * predictAlpha;
+    predicted.y = current.y + (current.y - lastTargetPos.y) * predictAlpha;
+
+    // 更新上一帧位置
+    lastTargetPos = current;
+
+    // 返回预测位置
+    return predicted;
 }
 
 // 自瞄线程 - 负责处理自瞄和更新目标状态
@@ -124,7 +158,8 @@ void ActionModule::ProcessLoop() {
             float offsetX = screenCenterX - 320.0f / 2;
             float offsetY = screenCenterY - 320.0f / 2;
 
-            // 计算目标坐标
+
+            // 使用预测的目标坐标
             int targetX = static_cast<int>(offsetX + prediction.x);
             int targetY = static_cast<int>(offsetY + prediction.y);
 
@@ -145,14 +180,20 @@ void ActionModule::ProcessLoop() {
                     // 归一化移动值到±10范围
                     auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 10.0f);
 
+                    // 当前目标坐标
+                    Point2D currentTarget = { normalizedMove.first, normalizedMove.second };
+
+                    // 在移动层面上进行简单预测
+                    Point2D predictedTarget = PredictNextPosition(currentTarget);
+
+
                     // 使用控制器移动鼠标(相对坐标)
                     mouseController->MoveTo(
-                        static_cast<int>(normalizedMove.first),
-                        static_cast<int>(normalizedMove.second));
+                        static_cast<int>(predictedTarget.x),
+                        static_cast<int>(predictedTarget.y));
 
-                    // 打印调试信息
-                    std::cout << "centerToTarget:" << centerToTargetX << ", " << centerToTargetY
-                        << " ---> normal:" << normalizedMove.first << ", " << normalizedMove.second << std::endl;
+                    //通知预测模块鼠标移动了，用于补充鼠标补偿计算
+                    PredictionModule::NotifyMouseMovement(normalizedMove.first, normalizedMove.second);
                 }
             }
         }
@@ -160,6 +201,7 @@ void ActionModule::ProcessLoop() {
             // 没有有效目标
             sharedState->hasValidTarget = false;
             sharedState->targetDistance = 999.0f;
+            hasLastTarget = false; // 重置预测状态
         }
     }
 }

@@ -8,6 +8,12 @@
 #include "MouseController.h"
 #include "PredictionModule.h"
 
+struct Point2D {
+    float x;
+    float y;
+};
+
+
 // 定义线程安全的共享状态结构体
 struct SharedState {
     std::atomic<bool> isAutoAimEnabled{ false };
@@ -25,6 +31,11 @@ private:
     static std::unique_ptr<MouseController> mouseController;
     static std::shared_ptr<SharedState> sharedState; // 共享状态
 
+    // 预测相关变量
+    static float predictAlpha;  // 预测系数
+    static Point2D lastTargetPos;  // 上一帧目标位置
+    static bool hasLastTarget;  // 是否有上一帧目标位置
+
     // 主处理循环 (自瞄)
     static void ProcessLoop();
 
@@ -33,6 +44,9 @@ private:
 
     // 归一化移动值到指定范围
     static std::pair<float, float> NormalizeMovement(float x, float y, float maxValue);
+
+    // 预测下一帧位置
+    static Point2D PredictNextPosition(const Point2D& current);
 
 public:
     // 初始化模块
@@ -49,6 +63,12 @@ public:
 
     // 设置鼠标控制器
     static void SetMouseController(std::unique_ptr<MouseController> controller);
+
+    // 设置预测系数
+    static void SetPredictAlpha(float alpha);
+
+
+
 };
 
 #endif // ACTION_MODULE_H

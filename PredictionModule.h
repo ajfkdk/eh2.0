@@ -38,6 +38,8 @@ namespace PredictionModule {
     // 获取调试模式状态
     bool IsDebugModeEnabled();
 
+    void NotifyMouseMovement(int dx, int dy);
+
     // 这些函数保留为接口兼容，但不再使用
     void SetGFactor(float g);
     void SetHFactor(float h);
