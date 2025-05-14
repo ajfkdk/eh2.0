@@ -9,9 +9,14 @@
 // 静态成员初始化
 std::thread ActionModule::actionThread;
 std::thread ActionModule::fireThread;
+std::thread ActionModule::pidDebugThread;
 std::atomic<bool> ActionModule::running(false);
+std::atomic<bool> ActionModule::pidDebugEnabled(false);
+std::atomic<bool> ActionModule::usePrediction(false); // 默认使用PID控制
 std::unique_ptr<MouseController> ActionModule::mouseController = nullptr;
 std::shared_ptr<SharedState> ActionModule::sharedState = std::make_shared<SharedState>();
+PIDController ActionModule::pidController;
+std::unique_ptr<KeyboardListener> ActionModule::keyboardListener = nullptr;
 
 // 预测调控参数
 float ActionModule::predictAlpha = 0.3f; // 默认值设为0.3，在0.2~0.5范围内
@@ -24,6 +29,10 @@ std::thread ActionModule::Initialize() {
         // 创建Windows鼠标控制器的智能指针
         mouseController = std::make_unique<KmboxNetMouseController>();
     }
+
+    // 创建键盘监听器
+    keyboardListener = std::make_unique<KeyboardListener>();
+    keyboardListener->onKeyPress = HandleKeyPress;
 
     // 启动鼠标监听
     if (mouseController) {
@@ -55,10 +64,20 @@ void ActionModule::Cleanup() {
     if (fireThread.joinable()) {
         fireThread.join();
     }
+
+    if (pidDebugThread.joinable()) {
+        pidDebugThread.join();
+    }
+
+    // 停止键盘监听
+    if (keyboardListener) {
+        keyboardListener->Stop();
+    }
 }
 
 void ActionModule::Stop() {
     running.store(false);
+    pidDebugEnabled.store(false);
 }
 
 bool ActionModule::IsRunning() {
@@ -69,11 +88,116 @@ void ActionModule::SetMouseController(std::unique_ptr<MouseController> controlle
     mouseController = std::move(controller);
 }
 
-// 设置预测系数
+void ActionModule::EnablePIDDebug(bool enable) {
+    bool currentState = pidDebugEnabled.load();
+
+    // 如果状态没变，不做任何操作
+    if (currentState == enable) return;
+
+    pidDebugEnabled.store(enable);
+
+    // 如果是启用PID调试
+    if (enable) {
+        // 启动键盘监听
+        keyboardListener->Start();
+
+        // 打印当前PID参数
+        std::cout << "PID调试模式已启用" << std::endl;
+        std::cout << "使用以下键调整PID参数：" << std::endl;
+        std::cout << "Q/W: 调整Kp (比例系数) - 当前值: " << pidController.kp.load() << std::endl;
+        std::cout << "A/S: 调整Ki (积分系数) - 当前值: " << pidController.ki.load() << std::endl;
+        std::cout << "Z/X: 调整Kd (微分系数) - 当前值: " << pidController.kd.load() << std::endl;
+
+        // 启动PID调试线程
+        pidDebugThread = std::thread(PIDDebugLoop);
+    }
+    else {
+        // 停止键盘监听
+        keyboardListener->Stop();
+
+        std::cout << "PID调试模式已禁用" << std::endl;
+    }
+}
+
+bool ActionModule::IsPIDDebugEnabled() {
+    return pidDebugEnabled.load();
+}
+
+void ActionModule::SetUsePrediction(bool enable) {
+    usePrediction.store(enable);
+    std::cout << "瞄准模式已切换为: " << (enable ? "预测模式" : "PID控制模式") << std::endl;
+
+    // 如果切换为PID模式，重置PID控制器
+    if (!enable) {
+        pidController.Reset();
+    }
+    else {
+        // 如果切换为预测模式，重置预测状态
+        hasLastTarget = false;
+    }
+}
+
+bool ActionModule::IsUsingPrediction() {
+    return usePrediction.load();
+}
+
 void ActionModule::SetPredictAlpha(float alpha) {
     if (alpha >= 0.0f && alpha <= 1.0f) {
         predictAlpha = alpha;
         std::cout << "预测系数已设置为: " << alpha << std::endl;
+    }
+}
+
+void ActionModule::HandleKeyPress(int key) {
+    float kp = pidController.kp.load();
+    float ki = pidController.ki.load();
+    float kd = pidController.kd.load();
+
+    const float pStep = 0.05f;
+    const float iStep = 0.01f;
+    const float dStep = 0.01f;
+
+    switch (key) {
+    case 'Q':
+        kp = max(0.0f, kp - pStep);
+        pidController.kp.store(kp);
+        std::cout << "Kp 调整为: " << kp << std::endl;
+        break;
+    case 'W':
+        kp += pStep;
+        pidController.kp.store(kp);
+        std::cout << "Kp 调整为: " << kp << std::endl;
+        break;
+    case 'A':
+        ki = max(0.0f, ki - iStep);
+        pidController.ki.store(ki);
+        std::cout << "Ki 调整为: " << ki << std::endl;
+        break;
+    case 'S':
+        ki += iStep;
+        pidController.ki.store(ki);
+        std::cout << "Ki 调整为: " << ki << std::endl;
+        break;
+    case 'Z':
+        kd = max(0.0f, kd - dStep);
+        pidController.kd.store(kd);
+        std::cout << "Kd 调整为: " << kd << std::endl;
+        break;
+    case 'X':
+        kd += dStep;
+        pidController.kd.store(kd);
+        std::cout << "Kd 调整为: " << kd << std::endl;
+        break;
+    case 'P': // 切换预测模式和PID模式
+        SetUsePrediction(!IsUsingPrediction());
+        break;
+    }
+}
+
+void ActionModule::PIDDebugLoop() {
+    while (running.load() && pidDebugEnabled.load()) {
+        // 线程定期睡眠，减少CPU使用
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
@@ -92,6 +216,45 @@ std::pair<float, float> ActionModule::NormalizeMovement(float x, float y, float 
 
     // 返回归一化后的值
     return { x * factor, y * factor };
+}
+
+// PID控制算法
+std::pair<float, float> ActionModule::ApplyPIDControl(float errorX, float errorY) {
+    auto currentTime = std::chrono::steady_clock::now();
+    float dt = std::chrono::duration<float>(currentTime - pidController.lastTime).count();
+    pidController.lastTime = currentTime;
+
+    // 防止dt过小或为零导致计算问题
+    if (dt < 0.001f) dt = 0.001f;
+
+    // 提取PID参数
+    float kp = pidController.kp.load();
+    float ki = pidController.ki.load();
+    float kd = pidController.kd.load();
+
+    // 计算微分项
+    float derivativeX = (errorX - pidController.previousErrorX) / dt;
+    float derivativeY = (errorY - pidController.previousErrorY) / dt;
+
+    // 更新积分项 (带限制，防止积分饱和)
+    pidController.integralX += errorX * dt;
+    pidController.integralY += errorY * dt;
+
+    // 积分限制
+    pidController.integralX = max(-pidController.integralLimit,
+        min(pidController.integralX, pidController.integralLimit));
+    pidController.integralY = max(-pidController.integralLimit,
+        min(pidController.integralY, pidController.integralLimit));
+
+    // 计算PID输出
+    float outputX = kp * errorX + ki * pidController.integralX + kd * derivativeX;
+    float outputY = kp * errorY + ki * pidController.integralY + kd * derivativeY;
+
+    // 保存当前误差供下次使用
+    pidController.previousErrorX = errorX;
+    pidController.previousErrorY = errorY;
+
+    return { outputX, outputY };
 }
 
 // 预测目标下一帧位置
@@ -120,6 +283,9 @@ void ActionModule::ProcessLoop() {
     bool prevSideButton1State = false; // 用于检测侧键1状态变化
     bool prevSideButton2State = false; // 用于检测侧键2状态变化
 
+    // 重置PID控制器
+    pidController.Reset();
+
     // 处理主循环
     while (running.load()) {
         // 处理自瞄开关（侧键1）
@@ -127,6 +293,10 @@ void ActionModule::ProcessLoop() {
         if (currentSideButton1State && !prevSideButton1State) {
             sharedState->isAutoAimEnabled = !sharedState->isAutoAimEnabled; // 切换自瞄状态
             std::cout << "自瞄功能: " << (sharedState->isAutoAimEnabled ? "开启" : "关闭") << std::endl;
+
+            // 每次开关自瞄时重置PID控制器
+            pidController.Reset();
+            hasLastTarget = false; // 重置预测状态
         }
         prevSideButton1State = currentSideButton1State;
 
@@ -158,7 +328,7 @@ void ActionModule::ProcessLoop() {
             float offsetX = screenCenterX - 320.0f / 2;
             float offsetY = screenCenterY - 320.0f / 2;
 
-            // 使用预测的目标坐标
+            // 计算目标坐标
             int targetX = static_cast<int>(offsetX + prediction.x);
             int targetY = static_cast<int>(offsetY + prediction.y);
 
@@ -169,40 +339,70 @@ void ActionModule::ProcessLoop() {
             // 计算长度
             float length = std::sqrt(centerToTargetX * centerToTargetX + centerToTargetY * centerToTargetY);
 
-            // 重要修改：先更新目标状态，无论距离如何，确保在死区内也能正确维护目标状态
+            // 更新目标距离到共享状态
             sharedState->targetDistance = length;
             sharedState->hasValidTarget = true;
 
             // 处理自瞄功能
-            if (sharedState->isAutoAimEnabled && mouseController) {
-                // 降低死区阈值，确保即使目标接近中心也会有微小调整
-                if (length >= deadZoneThreshold && !mouseController->IsMouseMoving()) { 
-                    // 归一化移动值到±10范围
-                    auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 10.0f);
+            if (sharedState->isAutoAimEnabled && mouseController && !mouseController->IsMouseMoving()) {
+                bool isPredictionMode = usePrediction.load();
 
-                    // 当前目标坐标
-                    Point2D currentTarget = { normalizedMove.first, normalizedMove.second };
+                // 根据当前模式选择使用PID控制或预测功能
+                if (isPredictionMode) {
+                    // 预测模式
+                    if (length >= deadZoneThreshold) {
+                        // 归一化移动值到±10范围
+                        auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 15.0f);
 
-                    // 在移动层面上进行简单预测
-                    Point2D predictedTarget = PredictNextPosition(currentTarget);
+                        // 当前目标坐标
+                        Point2D currentTarget = { normalizedMove.first, normalizedMove.second };
 
-              
+                        // 在移动层面上进行简单预测
+                        Point2D predictedTarget = PredictNextPosition(currentTarget);
 
-                    // 使用控制器移动鼠标(相对坐标)
-                    mouseController->MoveToWithTime(
-                        static_cast<int>(predictedTarget.x),
-                        static_cast<int>(predictedTarget.y),
-                        length * humanizationFactor  // 距离乘以拟人化因子
-                    );
+                        // 使用控制器移动鼠标(相对坐标)
+                        mouseController->MoveToWithTime(
+                            static_cast<int>(predictedTarget.x),
+                            static_cast<int>(predictedTarget.y),
+                            length * humanizationFactor  // 距离乘以拟人化因子
+                        );
 
-                    // 通知预测模块鼠标移动了，用于补充鼠标补偿计算
-                    PredictionModule::NotifyMouseMovement(normalizedMove.first, normalizedMove.second);
+                        // 通知预测模块鼠标移动了，用于补充鼠标补偿计算
+                        PredictionModule::NotifyMouseMovement(normalizedMove.first, normalizedMove.second);
+                    }
                 }
-                // 即使在死区内也保持目标状态的有效性，确保自动开火功能正常工作
-                else if (length < deadZoneThreshold) {
-                    // 死区内，但目标依然有效，不做鼠标移动
-                    sharedState->hasValidTarget = true;
-                    sharedState->targetDistance = length;
+                else {
+                    // PID控制模式
+                    if (length >= 7.0f) {
+                        // 使用PID控制器计算移动值
+                        auto pidOutput = ApplyPIDControl(centerToTargetX, centerToTargetY);
+
+                        // 归一化移动值到±10范围
+                        auto normalizedMove = NormalizeMovement(pidOutput.first, pidOutput.second, 10.0f);
+
+                        // 使用控制器移动鼠标(相对坐标)
+                        mouseController->MoveToWithTime(
+                            static_cast<int>(normalizedMove.first),
+                            static_cast<int>(normalizedMove.second),
+                            length * humanizationFactor  // 距离乘以拟人化因子
+                        );
+
+                        // 打印调试信息
+                        if (pidDebugEnabled.load()) {
+                            std::cout << "Error:" << centerToTargetX << "," << centerToTargetY
+                                << " PID:" << pidOutput.first << "," << pidOutput.second
+                                << " Move:" << normalizedMove.first << "," << normalizedMove.second << std::endl;
+                        }
+                    }
+                }
+            }
+            else if (!sharedState->isAutoAimEnabled) {
+                // 当自瞄关闭时重置控制器状态
+                if (usePrediction.load()) {
+                    hasLastTarget = false;
+                }
+                else {
+                    pidController.Reset();
                 }
             }
         }
@@ -210,7 +410,10 @@ void ActionModule::ProcessLoop() {
             // 没有有效目标
             sharedState->hasValidTarget = false;
             sharedState->targetDistance = 999.0f;
-            hasLastTarget = false; // 重置预测状态
+
+            // 重置控制器状态
+            pidController.Reset();
+            hasLastTarget = false;
         }
     }
 }
@@ -319,7 +522,7 @@ void ActionModule::FireControlLoop() {
         }
 
         // 短暂睡眠，降低CPU使用率
-        Sleep(5);
+        Sleep(1);
     }
 
     // 确保退出时释放鼠标按键

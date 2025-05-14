@@ -126,7 +126,11 @@ int main() {
         DetectionModule::SetShowDetections(true);
 
         // 设置预测模块的调试模式
-        PredictionModule::SetDebugMode(true);  // 添加这一行启用预测调试
+        PredictionModule::SetDebugMode(true);  
+
+        // 启用PID调试功能（如需要）
+        ActionModule::EnablePIDDebug(true);  // 添加这行
+
 
         // 禁用Windows定时器调度，减少系统干扰
         timeBeginPeriod(1);

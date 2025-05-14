@@ -28,6 +28,7 @@
     <ClInclude Include="HumanLikeMovement.h" />
     <ClInclude Include="IFrameCapture.h" />
     <ClInclude Include="inference.h" />
+    <ClInclude Include="KeyboardListener.h" />
     <ClInclude Include="kmboxNet.h" />
     <ClInclude Include="KmboxNetMouseController.h" />
     <ClInclude Include="MouseController.h" />
@@ -46,6 +47,7 @@
     <ClCompile Include="DetectionModule.cpp" />
     <ClCompile Include="HumanLikeMovement.cpp" />
     <ClCompile Include="inference.cpp" />
+    <ClCompile Include="KeyboardListener.cpp" />
     <ClCompile Include="kmboxNet.cpp" />
     <ClCompile Include="KmboxNetMouseController.cpp" />
     <ClCompile Include="main.cpp" />
