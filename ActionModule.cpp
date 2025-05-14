@@ -22,7 +22,7 @@ std::unique_ptr<KeyboardListener> ActionModule::keyboardListener = nullptr;
 float ActionModule::predictAlpha = 0.3f; // 默认值设为0.3，在0.2~0.5范围内
 Point2D ActionModule::lastTargetPos = { 0, 0 }; // 上一帧目标位置
 bool ActionModule::hasLastTarget = false; // 是否有上一帧目标位置
-int ActionModule::aimFov = 10; // 默认瞄准视场角度
+int ActionModule::aimFov = 35; // 默认瞄准视场角度
 
 std::thread ActionModule::Initialize() {
     // 如果没有设置鼠标控制器，使用Windows默认实现
@@ -312,7 +312,7 @@ void ActionModule::ProcessLoop() {
         // 获取最新预测结果
         PredictionResult prediction;
         bool hasPrediction = PredictionModule::GetLatestPrediction(prediction);
-        std::cout<< "获取预测结果: " << prediction.x << ", " << prediction.y << "hasPrediction:"<< hasPrediction << "| sharedState->targetDistance :"<< sharedState->targetDistance <<"|sharedState->hasValidTarget:"<< sharedState->hasValidTarget << std::endl;
+        //std::cout<< "获取预测结果: " << prediction.x << ", " << prediction.y << "hasPrediction:"<< hasPrediction << "| sharedState->targetDistance :"<< sharedState->targetDistance <<"|sharedState->hasValidTarget:"<< sharedState->hasValidTarget << std::endl;
         // 如果有有效预测结果
         if (hasPrediction && prediction.x != 999 && prediction.y != 999) {
             // 获取屏幕分辨率
