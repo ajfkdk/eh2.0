@@ -17,7 +17,7 @@ namespace PredictionModule {
     std::atomic<int> g_lastTargetY{ 0 }; // 上次锁定目标的Y坐标
     std::chrono::steady_clock::time_point g_targetLostTime; // 目标丢失时间
     std::atomic<int> g_validateTargetDistance{ 30 }; // 目标验证距离(像素)
-    std::atomic<int> g_targetLostTimeoutMs{ 300 }; // 目标丢失超时(毫秒)
+    std::atomic<int> g_targetLostTimeoutMs{ 500 }; // 目标丢失超时(毫秒)
     std::atomic<int> g_lastMouseMoveX{ 0 }; // 上次鼠标X方向移动
     std::atomic<int> g_lastMouseMoveY{ 0 }; // 上次鼠标Y方向移动
 
