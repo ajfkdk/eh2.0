@@ -158,7 +158,6 @@ void ActionModule::ProcessLoop() {
             float offsetX = screenCenterX - 320.0f / 2;
             float offsetY = screenCenterY - 320.0f / 2;
 
-
             // 使用预测的目标坐标
             int targetX = static_cast<int>(offsetX + prediction.x);
             int targetY = static_cast<int>(offsetY + prediction.y);
@@ -170,13 +169,14 @@ void ActionModule::ProcessLoop() {
             // 计算长度
             float length = std::sqrt(centerToTargetX * centerToTargetX + centerToTargetY * centerToTargetY);
 
-            // 更新目标距离到共享状态
+            // 重要修改：先更新目标状态，无论距离如何，确保在死区内也能正确维护目标状态
             sharedState->targetDistance = length;
             sharedState->hasValidTarget = true;
 
             // 处理自瞄功能
-            if (sharedState->isAutoAimEnabled && mouseController && !mouseController->IsMouseMoving()) {
-                if (length >= 7.0f) {
+            if (sharedState->isAutoAimEnabled && mouseController) {
+                // 降低死区阈值，确保即使目标接近中心也会有微小调整
+                if (length >= deadZoneThreshold && !mouseController->IsMouseMoving()) { 
                     // 归一化移动值到±10范围
                     auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 10.0f);
 
@@ -187,7 +187,7 @@ void ActionModule::ProcessLoop() {
                     Point2D predictedTarget = PredictNextPosition(currentTarget);
 
                     // 对x、y都进行随机偏移，增加拟人化
-                     // 随机偏移-2到2
+                    // 随机偏移-2到2
                     predictedTarget.x += (rand() % 5 - 2);
                     predictedTarget.y += (rand() % 5 - 2);
 
@@ -195,11 +195,17 @@ void ActionModule::ProcessLoop() {
                     mouseController->MoveToWithTime(
                         static_cast<int>(predictedTarget.x),
                         static_cast<int>(predictedTarget.y),
-                        length* humanizationFactor//距离乘以拟人化因子
+                        length * humanizationFactor  // 距离乘以拟人化因子
                     );
 
-                    //通知预测模块鼠标移动了，用于补充鼠标补偿计算
+                    // 通知预测模块鼠标移动了，用于补充鼠标补偿计算
                     PredictionModule::NotifyMouseMovement(normalizedMove.first, normalizedMove.second);
+                }
+                // 即使在死区内也保持目标状态的有效性，确保自动开火功能正常工作
+                else if (length < deadZoneThreshold) {
+                    // 死区内，但目标依然有效，不做鼠标移动
+                    sharedState->hasValidTarget = true;
+                    sharedState->targetDistance = length;
                 }
             }
         }

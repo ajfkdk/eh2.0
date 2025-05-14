@@ -38,6 +38,8 @@ private:
 
     // 其他变量
     static constexpr int humanizationFactor = 2; // 拟人化因子
+    //死区阈值
+    static constexpr float deadZoneThreshold = 7.f; // 死区阈值
 
     // 主处理循环 (自瞄)
     static void ProcessLoop();
