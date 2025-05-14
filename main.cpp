@@ -119,11 +119,11 @@ int main() {
 
 
         // 可选：采集模块-->设置调试模式和显示检测框
-        CaptureModule::SetCaptureDebug(false);
+        CaptureModule::SetCaptureDebug(true);
 
         // 可选：设置调试模式和显示检测框
         DetectionModule::SetDebugMode(true);
-        DetectionModule::SetShowDetections(false);
+        DetectionModule::SetShowDetections(true);
 
         // 设置预测模块的调试模式
         PredictionModule::SetDebugMode(true);  
