@@ -27,6 +27,8 @@ private:
     std::atomic<bool> mouseMoving;
     std::chrono::steady_clock::time_point lastMoveTime;
     static constexpr int MOVE_THRESHOLD_MS = 100; // 鼠标静止阈值（毫秒）
+    //鼠标移动检查间隔
+    static constexpr int MOVE_CHECK_INTERVAL_MS = 10; // 检查间隔（毫秒）
 
 public:
     // 构造函数，初始化kmboxNet设备连接

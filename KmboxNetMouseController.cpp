@@ -34,7 +34,7 @@ KmboxNetMouseController::~KmboxNetMouseController() {
     // kmboxNet库可能没有显式关闭连接的函数
 }
 
-void KmboxNetMouseController::MoveToWithTime(int x, int y,int during) {
+void KmboxNetMouseController::MoveToWithTime(int x, int y, int during) {
     if (!connected.load()) {
         std::cerr << "KmboxNet未连接，无法移动鼠标" << std::endl;
         return;
@@ -216,7 +216,7 @@ bool KmboxNetMouseController::StartMonitor(int port) {
         std::thread([this]() {
             while (monitoring.load()) {
                 UpdateMouseMovingState();
-                std::this_thread::sleep_for(std::chrono::milliseconds(50)); // 每50ms检查一次
+                std::this_thread::sleep_for(std::chrono::milliseconds(MOVE_CHECK_INTERVAL_MS));
             }
             }).detach();
 
@@ -295,22 +295,26 @@ void KmboxNetMouseController::UpdateMouseMovingState() {
     }
 
     int currentX, currentY;
-    int result = kmNet_monitor_mouse_xy(&currentX, &currentY);
+    kmNet_monitor_mouse_xy(&currentX, &currentY);
 
-    if (result == 1) { // 鼠标位置发生变化
+    // 检查鼠标位置是否发生变化
+    if (currentX != lastMouseX || currentY != lastMouseY) {
+        // 鼠标移动了，立即将状态设为true
         lastMouseX = currentX;
         lastMouseY = currentY;
         mouseMoving.store(true);
         lastMoveTime = std::chrono::steady_clock::now(); // 更新最后移动时间
     }
     else {
-        // 检查自上次移动后是否经过了阈值时间
+        // 位置没有变化，检查自上次移动后是否经过了阈值时间
         auto currentTime = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
             currentTime - lastMoveTime).count();
 
+        // 只有经过MOVE_THRESHOLD_MS时间没有移动，才将mouseMoving设为false
         if (elapsed > MOVE_THRESHOLD_MS) {
             mouseMoving.store(false);
         }
+        // 否则保持当前状态，如果是true则仍为true
     }
 }
