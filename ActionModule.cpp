@@ -22,6 +22,7 @@ std::unique_ptr<KeyboardListener> ActionModule::keyboardListener = nullptr;
 float ActionModule::predictAlpha = 0.3f; // 默认值设为0.3，在0.2~0.5范围内
 Point2D ActionModule::lastTargetPos = { 0, 0 }; // 上一帧目标位置
 bool ActionModule::hasLastTarget = false; // 是否有上一帧目标位置
+int ActionModule::aimFov = 10; // 默认瞄准视场角度
 
 std::thread ActionModule::Initialize() {
     // 如果没有设置鼠标控制器，使用Windows默认实现
@@ -104,7 +105,7 @@ void ActionModule::EnablePIDDebug(bool enable) {
         // 打印当前PID参数
         std::cout << "PID调试模式已启用" << std::endl;
         std::cout << "使用以下键调整PID参数：" << std::endl;
-        std::cout << "Q/W: 调整Kp (比例系数) - 当前值: " << pidController.kp.load() << std::endl;
+        std::cout << "Q/W: 调整aimFov  - 当前值: " << aimFov << std::endl;
         std::cout << "A/S: 调整Ki (积分系数) - 当前值: " << pidController.ki.load() << std::endl;
         std::cout << "Z/X: 调整Kd (微分系数) - 当前值: " << pidController.kd.load() << std::endl;
 
@@ -159,14 +160,12 @@ void ActionModule::HandleKeyPress(int key) {
 
     switch (key) {
     case 'Q':
-        kp = max(0.0f, kp - pStep);
-        pidController.kp.store(kp);
-        std::cout << "Kp 调整为: " << kp << std::endl;
+        aimFov = max(0.0f, aimFov - 1);
+        std::cout << "aimFov 调整为: " << aimFov << std::endl;
         break;
     case 'W':
-        kp += pStep;
-        pidController.kp.store(kp);
-        std::cout << "Kp 调整为: " << kp << std::endl;
+        aimFov += 1;
+        std::cout << "aimFov 调整为: " << aimFov << std::endl;
         break;
     case 'A':
         ki = max(0.0f, ki - iStep);
@@ -344,7 +343,7 @@ void ActionModule::ProcessLoop() {
             sharedState->hasValidTarget = true;
 
             // 处理自瞄功能
-            if (sharedState->isAutoAimEnabled && mouseController && !mouseController->IsMouseMoving()) {
+            if (sharedState->isAutoAimEnabled && mouseController && !mouseController->IsMouseMoving()&&length< aimFov) {
                 bool isPredictionMode = usePrediction.load();
 
                 // 根据当前模式选择使用PID控制或预测功能
