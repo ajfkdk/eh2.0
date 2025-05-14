@@ -188,46 +188,6 @@ namespace PredictionModule {
         return emptyResult;
     }
 
-    // 查找离屏幕中心最近的目标
-    DetectionResult FindNearestTarget2(const std::vector<DetectionResult>& targets) {
-        if (targets.empty()) {
-            DetectionResult emptyResult;
-            emptyResult.classId = -1;
-            emptyResult.x = 0;
-            emptyResult.y = 0;
-            return emptyResult;
-        }
-
-        // 屏幕中心坐标 (基于320x320的图像)
-        const int centerX = 160;
-        const int centerY = 160;
-
-        // 查找最近的目标
-        DetectionResult nearest = targets[0];
-        float minDistance = std::numeric_limits<float>::max();
-        //std::vector<std::string> classes{ "ct_body", "ct_head", "t_body", "t_head" };
-        for (const auto& target : targets) {
-            // 只考虑有效的目标（classId =1 , 3) 锁头
-            if (target.classId >= 0 && (target.classId == 1 || target.classId == 3)) {
-                float dx = target.x - centerX;
-                float dy = target.y - centerY;
-                float distance = std::sqrt(dx * dx + dy * dy);
-
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    nearest = target;
-                }
-            }
-        }
-
-        // 如果没有找到有效目标，返回无效目标
-        if (minDistance == std::numeric_limits<float>::max()) {
-            nearest.classId = -1;
-        }
-
-        return nearest;
-    }
-
     // 预测模块工作函数
     void PredictionModuleWorker() {
         std::cout << "Prediction module worker started" << std::endl;
@@ -245,7 +205,7 @@ namespace PredictionModule {
                 prediction.timestamp = std::chrono::high_resolution_clock::now();
 
                 // 查找离中心最近的目标
-                DetectionResult nearestTarget = FindNearestTarget2(targets);
+                DetectionResult nearestTarget = FindNearestTarget(targets);
 
                 // 如果有有效目标
                 if (nearestTarget.classId >= 0 && nearestTarget.x != 999) {
