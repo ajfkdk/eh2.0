@@ -202,7 +202,7 @@ void TestMouseMovement(int targetX, int targetY, int humanizationFactor = 50) {
     // 创建鼠标控制器
     std::unique_ptr<MouseController> mouseController = std::make_unique<KmboxNetMouseController>();
 
-    mouseController->MoveTo(targetX, targetY);
+    mouseController->MoveToWithTime(targetX, targetY,1);
 }
 
 // 测试鼠标监听功能
