@@ -7,7 +7,7 @@ public:
     virtual ~MouseController() = default;
 
     // 移动鼠标到指定位置
-    virtual void MoveTo(int x, int y) = 0;
+    virtual void MoveToWithTime(int x, int y,int during) = 0;
 
     // 获取当前鼠标位置
     virtual void GetCurrentPosition(int& x, int& y) = 0;

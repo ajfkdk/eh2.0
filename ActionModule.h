@@ -36,6 +36,9 @@ private:
     static Point2D lastTargetPos;  // 上一帧目标位置
     static bool hasLastTarget;  // 是否有上一帧目标位置
 
+    // 其他变量
+    static constexpr int humanizationFactor = 2; // 拟人化因子
+
     // 主处理循环 (自瞄)
     static void ProcessLoop();
 

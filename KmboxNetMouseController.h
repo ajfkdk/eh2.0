@@ -38,7 +38,7 @@ public:
     ~KmboxNetMouseController() override;
 
     // 移动鼠标到指定位置
-    void MoveTo(int x, int y) override;
+    void MoveToWithTime(int x, int y,int during) override;
 
     // 获取当前鼠标位置
     void GetCurrentPosition(int& x, int& y) override;

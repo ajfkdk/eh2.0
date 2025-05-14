@@ -34,13 +34,13 @@ KmboxNetMouseController::~KmboxNetMouseController() {
     // kmboxNet库可能没有显式关闭连接的函数
 }
 
-void KmboxNetMouseController::MoveTo(int x, int y) {
+void KmboxNetMouseController::MoveToWithTime(int x, int y,int during) {
     if (!connected.load()) {
         std::cerr << "KmboxNet未连接，无法移动鼠标" << std::endl;
         return;
     }
 
-    int result = kmNet_mouse_move_auto(static_cast<short>(x), static_cast<short>(y), 15);
+    int result = kmNet_mouse_move_auto(static_cast<short>(x), static_cast<short>(y), during);
 
     if (result != 0) {
         std::cerr << "KmboxNet移动鼠标失败，错误码: " << result << std::endl;
