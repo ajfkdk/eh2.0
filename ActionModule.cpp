@@ -315,6 +315,7 @@ void ActionModule::ProcessLoop() {
         //std::cout<< "获取预测结果: " << prediction.x << ", " << prediction.y << "hasPrediction:"<< hasPrediction << "| sharedState->targetDistance :"<< sharedState->targetDistance <<"|sharedState->hasValidTarget:"<< sharedState->hasValidTarget << std::endl;
         // 如果有有效预测结果
         if (hasPrediction && prediction.x != 999 && prediction.y != 999) {
+            std::cout<< "获取预测结果: " << prediction.x << ", " << prediction.y << std::endl;
             // 获取屏幕分辨率
             int screenWidth = GetSystemMetrics(SM_CXSCREEN);
             int screenHeight = GetSystemMetrics(SM_CYSCREEN);
