@@ -384,15 +384,7 @@ void ActionModule::ProcessLoop() {
                         // 获取Y轴控制力度
                         float yControlFactor = pidController.yControlFactor.load();
 
-                        // 如果X轴已经足够接近目标（小于某个阈值），则减少Y轴移动或不移动
-                        float xThreshold = 5.0f; // X轴接近阈值
-                        if (abs(centerToTargetX) < xThreshold) {
-                            // X轴足够接近时，Y轴取消控制
-                            pidOutput.second = 0;
-                        }
-                        else {
-                            pidOutput.second *= yControlFactor; // Y轴控制力度
-                        }
+                        pidOutput.second *= yControlFactor; // Y轴控制力度
 
                         // 归一化移动值到±10范围
                         auto normalizedMove = NormalizeMovement(pidOutput.first, pidOutput.second, 10.0f);
