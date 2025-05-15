@@ -180,7 +180,8 @@ namespace DetectionModule {
 
     std::vector<DetectionResult> GetAllResults() {
         std::vector<DetectionResult> results;
-        multiResultBuffer.read(results, false);
+        //为了实时性更好
+        multiResultBuffer.readLatest(results);
         return results;
     }
 
