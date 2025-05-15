@@ -1,3 +1,4 @@
+// ActionModule.cpp
 #include "ActionModule.h"
 #include <iostream>
 #include <cmath>
@@ -23,6 +24,7 @@ float ActionModule::predictAlpha = 0.3f; // 默认值设为0.3，在0.2~0.5范围内
 Point2D ActionModule::lastTargetPos = { 0, 0 }; // 上一帧目标位置
 bool ActionModule::hasLastTarget = false; // 是否有上一帧目标位置
 int ActionModule::aimFov = 35; // 默认瞄准视场角度
+constexpr int ActionModule::targetValidDurationMs; // 目标有效持续时间(毫秒)
 
 std::thread ActionModule::Initialize() {
     // 如果没有设置鼠标控制器，使用Windows默认实现
@@ -338,12 +340,10 @@ void ActionModule::ProcessLoop() {
             // 计算长度
             float length = std::sqrt(centerToTargetX * centerToTargetX + centerToTargetY * centerToTargetY);
 
-            // 更新目标有效状态
-            if (!sharedState->hasValidTarget) {  // 如果之前是无效状态
-                sharedState->targetValidSince = std::chrono::steady_clock::now();  // 记录变为有效的时间
-            }
-            sharedState->hasValidTarget = true;
+            // 更新目标距离和有效目标标志到共享状态
             sharedState->targetDistance = length;
+            // 更新目标最近出现时间点
+            sharedState->targetValidSince = std::chrono::steady_clock::now();
 
             // 处理自瞄功能
             if (sharedState->isAutoAimEnabled && mouseController && !mouseController->IsMouseMoving() && length < aimFov) {
@@ -375,7 +375,7 @@ void ActionModule::ProcessLoop() {
                 }
                 else {
                     // PID控制模式
-                    if (length >= 7.0f) {
+                    if (length >= deadZoneThreshold) {
                         // 使用PID控制器计算移动值
                         auto pidOutput = ApplyPIDControl(centerToTargetX, centerToTargetY);
 
@@ -389,12 +389,7 @@ void ActionModule::ProcessLoop() {
                             length * humanizationFactor  // 距离乘以拟人化因子
                         );
 
-                        // 打印调试信息
-                        if (pidDebugEnabled.load()) {
-                            std::cout << "Error:" << centerToTargetX << "," << centerToTargetY
-                                << " PID:" << pidOutput.first << "," << pidOutput.second
-                                << " Move:" << normalizedMove.first << "," << normalizedMove.second << std::endl;
-                        }
+                     
                     }
                 }
             }
@@ -407,20 +402,6 @@ void ActionModule::ProcessLoop() {
                     pidController.Reset();
                 }
             }
-        }
-        else {
-            // 无效目标检测到
-            if (sharedState->hasValidTarget) {  // 如果之前是有效状态
-                sharedState->targetInvalidSince = std::chrono::steady_clock::now();  // 记录变为无效的时间
-            }
-
-            // 更新目标状态
-            sharedState->hasValidTarget = false;
-            sharedState->targetDistance = 999.0f;
-
-            // 重置控制器状态
-            pidController.Reset();
-            hasLastTarget = false;
         }
     }
 }
@@ -452,11 +433,6 @@ void ActionModule::FireControlLoop() {
     auto lastStateChangeTime = std::chrono::steady_clock::now();
     int currentDuration = 0;
 
-    // 目标有效持续时间要求（毫秒）
-    const int targetValidRequiredTime = 200;  // 200ms稳定目标后才能开火
-    // 目标无效持续时间要求（毫秒）
-    const int targetInvalidThreshold = 100;   // 100ms无目标后才停止开火
-
     while (running.load()) {
         auto currentTime = std::chrono::steady_clock::now();
         auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -464,16 +440,15 @@ void ActionModule::FireControlLoop() {
 
         // 获取当前共享状态
         bool autoFireEnabled = sharedState->isAutoFireEnabled.load();
-        bool hasValidTarget = sharedState->hasValidTarget.load();
+       
         float targetDistance = sharedState->targetDistance.load();
 
-        // 计算目标有效的持续时间
-        auto targetValidDuration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        // 计算目标最近出现时间与当前时间的差值
+        auto targetTimeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(
             currentTime - sharedState->targetValidSince).count();
 
-        // 计算目标无效的持续时间
-        auto targetInvalidDuration = std::chrono::duration_cast<std::chrono::milliseconds>(
-            currentTime - sharedState->targetInvalidSince).count();
+        // 判断目标是否在有效时间窗口内 (当前时间 - 最近目标时间 < 有效持续时间)
+        bool targetInValidTimeWindow = targetTimeDiff < targetValidDurationMs;
 
         // 如果自动开火关闭，确保鼠标释放并重置状态
         if (!autoFireEnabled) {
@@ -488,9 +463,8 @@ void ActionModule::FireControlLoop() {
         // 状态机逻辑
         switch (currentState) {
         case FireState::IDLE:
-            // 从空闲状态转为点射状态的条件
-            // 目标必须有效且持续时间超过阈值，距离也在有效范围内
-            if (autoFireEnabled && hasValidTarget && targetDistance < 10.0f && targetValidDuration >= targetValidRequiredTime) {
+            // 从空闲状态转为点射状态的条件：检查目标是否在有效时间窗口内且距离合适
+            if (autoFireEnabled && targetInValidTimeWindow && targetDistance < deadZoneThreshold) {
                 mouseController->LeftDown();
                 currentState = FireState::BURST_ACTIVE;
                 currentDuration = burstDuration(gen); // 随机点射持续时间
@@ -511,8 +485,8 @@ void ActionModule::FireControlLoop() {
                 lastStateChangeTime = currentTime;
                 std::cout << "点射结束，冷却: " << currentDuration << "ms" << std::endl;
             }
-            // 如果目标无效且持续无效超过阈值，或距离过远，停止点射
-            else if ((!hasValidTarget && targetInvalidDuration >= targetInvalidThreshold) || targetDistance >= 10.0f) {
+            // 只有当目标不在有效时间窗口且距离过远时，才停止点射
+            else if (!targetInValidTimeWindow && targetDistance >= 10.0f) {
                 mouseController->LeftUp();
                 currentState = FireState::IDLE;
                 std::cout << "目标丢失，停止点射" << std::endl;
@@ -522,8 +496,8 @@ void ActionModule::FireControlLoop() {
         case FireState::BURST_COOLDOWN:
             // 冷却时间结束
             if (elapsedTime >= currentDuration) {
-                // 如果目标仍然有效且在范围内，并且持续有效时间超过阈值，开始新一轮点射
-                if (hasValidTarget && targetDistance < 10.0f && targetValidDuration >= targetValidRequiredTime) {
+                // 如果目标在有效时间窗口内且距离合适，开始新一轮点射
+                if (targetInValidTimeWindow && targetDistance < 10.0f) {
                     // 有小概率插入短暂停顿，增加拟人性
                     if (gen() % 3 == 0) { // 约33%的概率
                         Sleep(microPause(gen));

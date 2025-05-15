@@ -1,3 +1,4 @@
+// ActionModule.h
 #ifndef ACTION_MODULE_H
 #define ACTION_MODULE_H
 
@@ -21,18 +22,8 @@ struct SharedState {
     std::atomic<bool> isAutoAimEnabled{ false };
     std::atomic<bool> isAutoFireEnabled{ false };
     std::atomic<float> targetDistance{ 999.0f };
-    std::atomic<bool> hasValidTarget{ false };
+    std::chrono::steady_clock::time_point targetValidSince{ std::chrono::steady_clock::now() }; // 添加目标最近出现时间点
     std::mutex mutex;
-
-    // 目标状态稳定性计时器
-    std::chrono::steady_clock::time_point targetValidSince;  // 目标变为有效的时间点
-    std::chrono::steady_clock::time_point targetInvalidSince;  // 目标变为无效的时间点
-
-    SharedState() {
-        // 初始化时间点
-        targetValidSince = std::chrono::steady_clock::now();
-        targetInvalidSince = std::chrono::steady_clock::now();
-    }
 };
 
 // PID控制器结构体
@@ -91,6 +82,7 @@ private:
     static constexpr int humanizationFactor = 2; // 拟人化因子
     static constexpr float deadZoneThreshold = 7.f; // 死区阈值
     static int aimFov; // 瞄准视场角度
+    static constexpr int targetValidDurationMs = 200; // 目标有效持续时间(毫秒)
 
     // 主处理循环 (自瞄)
     static void ProcessLoop();
