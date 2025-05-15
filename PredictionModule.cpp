@@ -10,14 +10,7 @@ namespace PredictionModule {
     std::atomic<bool> g_running{ false };
     std::atomic<bool> g_debugMode{ false };
 
-    // 目标跟踪变量
-    std::atomic<int> g_currentTargetId{ -1 };  // 当前跟踪的目标ID
-    std::atomic<bool> g_isTargetLocked{ false }; // 是否锁定了目标
-    std::atomic<int> g_lastTargetX{ 0 }; // 上次锁定目标的X坐标
-    std::atomic<int> g_lastTargetY{ 0 }; // 上次锁定目标的Y坐标
-    std::chrono::steady_clock::time_point g_targetLostTime; // 目标丢失时间
-    std::atomic<int> g_validateTargetDistance{ 30 }; // 目标验证距离(像素)
-    std::atomic<int> g_targetLostTimeoutMs{ 500 }; // 目标丢失超时(毫秒)
+    // 记录鼠标移动的变量
     std::atomic<int> g_lastMouseMoveX{ 0 }; // 上次鼠标X方向移动
     std::atomic<int> g_lastMouseMoveY{ 0 }; // 上次鼠标Y方向移动
 
@@ -38,127 +31,24 @@ namespace PredictionModule {
 
     // 查找离屏幕中心最近的目标
     DetectionResult FindNearestTarget(const std::vector<DetectionResult>& targets) {
-        // 屏幕中心坐标
-        const int centerX = 160;
-        const int centerY = 160;
-
-        // 当前时间
-        auto currentTime = std::chrono::steady_clock::now();
-
-        // 如果没有目标，重置锁定状态
         if (targets.empty()) {
-            // 如果之前有锁定目标，记录丢失时间
-            if (g_isTargetLocked) {
-                g_targetLostTime = currentTime;
-            }
-            g_isTargetLocked = false;
-            g_currentTargetId = -1;
-
             DetectionResult emptyResult;
             emptyResult.classId = -1;
-            emptyResult.x = 999;
-            emptyResult.y = 999;
+            emptyResult.x = 0;
+            emptyResult.y = 0;
             return emptyResult;
         }
 
-        // 补偿鼠标移动导致的目标位置变化
-        int compensatedLastX = g_lastTargetX - static_cast<int>(g_lastMouseMoveX * 0.5);
-        int compensatedLastY = g_lastTargetY - static_cast<int>(g_lastMouseMoveY * 0.5);
+        // 屏幕中心坐标 (基于320x320的图像)
+        const int centerX = 160;
+        const int centerY = 160;
 
-        // 重置鼠标移动补偿
-        g_lastMouseMoveX = 0;
-        g_lastMouseMoveY = 0;
-
-        // 如果当前有锁定目标
-        if (g_isTargetLocked) {
-            // 在锁定目标周围寻找匹配目标
-            std::vector<DetectionResult> candidatesInRange;
-
-            for (const auto& target : targets) {
-                // 只考虑有效的目标（classId = 1 或 3)
-                if (target.classId >= 0 && (target.classId == 1 || target.classId == 3)) {
-                    // 计算与上次位置的距离
-                    float dx = target.x - compensatedLastX;
-                    float dy = target.y - compensatedLastY;
-                    float distance = std::sqrt(dx * dx + dy * dy);
-
-                    // 如果在有效范围内，加入候选
-                    if (distance <= g_validateTargetDistance) {
-                        candidatesInRange.push_back(target);
-                    }
-                }
-            }
-
-            // 如果在范围内找到了候选目标
-            if (!candidatesInRange.empty()) {
-                // 更新目标存在时间
-                g_targetLostTime = currentTime;
-
-                // 如果只有一个候选，直接使用
-                if (candidatesInRange.size() == 1) {
-                    auto& target = candidatesInRange[0];
-
-                    // 更新上次位置
-                    g_lastTargetX = target.x;
-                    g_lastTargetY = target.y;
-
-                    return target;
-                }
-                // 如果有多个候选，选择离中心最近的，但暂不输出有效坐标
-                else {
-                    DetectionResult nearest = candidatesInRange[0];
-                    float minDistance = std::numeric_limits<float>::max();
-
-                    for (const auto& target : candidatesInRange) {
-                        float dx = target.x - centerX;
-                        float dy = target.y - centerY;
-                        float distance = std::sqrt(dx * dx + dy * dy);
-
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            nearest = target;
-                        }
-                    }
-
-                    // 更新上次位置
-                    g_lastTargetX = nearest.x;
-                    g_lastTargetY = nearest.y;
-
-                    // 虽然找到了目标，但因为多个候选可能导致抖动，返回无效坐标
-                    DetectionResult result = nearest;
-                    result.x = 999;
-                    result.y = 999;
-                    return result;
-                }
-            }
-            // 如果在范围内没有找到候选目标
-            else {
-                // 检查是否超过目标丢失超时
-                auto lostDuration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    currentTime - g_targetLostTime).count();
-
-                // 如果超过超时时间，解除锁定
-                if (lostDuration > g_targetLostTimeoutMs) {
-                    g_isTargetLocked = false;
-                    g_currentTargetId = -1;
-                }
-
-                // 返回无效目标
-                DetectionResult emptyResult;
-                emptyResult.classId = -1;
-                emptyResult.x = 999;
-                emptyResult.y = 999;
-                return emptyResult;
-            }
-        }
-
-        // 如果当前没有锁定目标，寻找新目标
-        DetectionResult nearest;
-        nearest.classId = -1;
+        // 查找最近的目标
+        DetectionResult nearest = targets[0];
         float minDistance = std::numeric_limits<float>::max();
-
+        //std::vector<std::string> classes{ "ct_body", "ct_head", "t_body", "t_head" };
         for (const auto& target : targets) {
-            // 只考虑有效的目标（classId = 1 或 3)
+            // 只考虑有效的目标（classId =1 , 3) 锁头
             if (target.classId >= 0 && (target.classId == 1 || target.classId == 3)) {
                 float dx = target.x - centerX;
                 float dy = target.y - centerY;
@@ -171,21 +61,12 @@ namespace PredictionModule {
             }
         }
 
-        // 如果找到了新目标，锁定它
-        if (nearest.classId >= 0) {
-            g_isTargetLocked = true;
-            g_lastTargetX = nearest.x;
-            g_lastTargetY = nearest.y;
-            g_targetLostTime = currentTime;
-            return nearest;
+        // 如果没有找到有效目标，返回无效目标
+        if (minDistance == std::numeric_limits<float>::max()) {
+            nearest.classId = -1;
         }
 
-        // 没有找到有效目标
-        DetectionResult emptyResult;
-        emptyResult.classId = -1;
-        emptyResult.x = 999;
-        emptyResult.y = 999;
-        return emptyResult;
+        return nearest;
     }
 
     // 预测模块工作函数
