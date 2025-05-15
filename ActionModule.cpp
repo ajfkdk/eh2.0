@@ -315,7 +315,6 @@ void ActionModule::ProcessLoop() {
         //std::cout<< "获取预测结果: " << prediction.x << ", " << prediction.y << "hasPrediction:"<< hasPrediction << "| sharedState->targetDistance :"<< sharedState->targetDistance <<"|sharedState->hasValidTarget:"<< sharedState->hasValidTarget << std::endl;
         // 如果有有效预测结果
         if (hasPrediction && prediction.x != 999 && prediction.y != 999) {
-            std::cout<< "获取预测结果: " << prediction.x << ", " << prediction.y << std::endl;
             // 获取屏幕分辨率
             int screenWidth = GetSystemMetrics(SM_CXSCREEN);
             int screenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -455,9 +454,23 @@ void ActionModule::FireControlLoop() {
         bool hasValidTarget = sharedState->hasValidTarget.load();
         float targetDistance = sharedState->targetDistance.load();
 
+        // 每10帧输出一次状态信息（避免输出过多）
+        static int frameCounter = 0;
+        frameCounter++;
+        if (frameCounter % 10 == 0) {
+            std::cout << "[状态] 自动开火:" << (autoFireEnabled ? "开启" : "关闭")
+                << " | 有效目标:" << (hasValidTarget ? "是" : "否")
+                << " | 目标距离:" << targetDistance
+                << " | 当前状态:" << (currentState == FireState::IDLE ? "空闲" :
+                    currentState == FireState::BURST_ACTIVE ? "点射中" : "冷却中")
+                << " | 已耗时:" << elapsedTime << "ms"
+                << " | 设定时长:" << currentDuration << "ms" << std::endl;
+        }
+
         // 如果自动开火关闭，确保鼠标释放并重置状态
         if (!autoFireEnabled) {
             if (mouseController->IsLeftButtonDown()) {
+                std::cout << "[控制] 自动开火已关闭，释放鼠标按键" << std::endl;
                 mouseController->LeftUp();
             }
             currentState = FireState::IDLE;
@@ -470,13 +483,26 @@ void ActionModule::FireControlLoop() {
         case FireState::IDLE:
             // 从空闲状态转为点射状态的条件
             if (autoFireEnabled && hasValidTarget && targetDistance < 10.0f) {
+                std::cout << "[转换] IDLE -> BURST_ACTIVE | 目标距离:" << targetDistance
+                    << " | 有效目标:" << (hasValidTarget ? "是" : "否") << std::endl;
+
+                std::cout << "[操作] 按下鼠标左键" << std::endl;
                 mouseController->LeftDown();
                 currentState = FireState::BURST_ACTIVE;
                 currentDuration = burstDuration(gen); // 随机点射持续时间
                 lastStateChangeTime = currentTime;
-                std::cout << "开始点射，持续: " << currentDuration << "ms" << std::endl;
+                std::cout << "[点射] 开始点射，持续: " << currentDuration << "ms" << std::endl;
             }
             else {
+                // 输出未开始点射的详细原因
+                if (frameCounter % 30 == 0) { // 降低输出频率
+                    if (!autoFireEnabled)
+                        std::cout << "[等待] 未开始点射: 自动开火未启用" << std::endl;
+                    else if (!hasValidTarget)
+                        std::cout << "[等待] 未开始点射: 无有效目标" << std::endl;
+                    else if (targetDistance >= 10.0f)
+                        std::cout << "[等待] 未开始点射: 目标距离过远 (" << targetDistance << ")" << std::endl;
+                }
                 Sleep(10); // 减少CPU使用
             }
             break;
@@ -484,41 +510,90 @@ void ActionModule::FireControlLoop() {
         case FireState::BURST_ACTIVE:
             // 点射持续时间结束
             if (elapsedTime >= currentDuration) {
+                std::cout << "[转换] BURST_ACTIVE -> BURST_COOLDOWN | 点射时间已达到:"
+                    << elapsedTime << "/" << currentDuration << "ms" << std::endl;
+
+                std::cout << "[操作] 释放鼠标左键" << std::endl;
                 mouseController->LeftUp();
                 currentState = FireState::BURST_COOLDOWN;
                 currentDuration = burstCooldown(gen); // 随机冷却时间
                 lastStateChangeTime = currentTime;
-                std::cout << "点射结束，冷却: " << currentDuration << "ms" << std::endl;
+                std::cout << "[点射] 点射结束，冷却: " << currentDuration << "ms" << std::endl;
             }
             // 如果目标无效或距离过远，立即停止点射
             else if (!hasValidTarget || targetDistance >= 10.0f) {
+                std::cout << "[中断] 点射中断 | 原因: "
+                    << (!hasValidTarget ? "目标丢失" : "目标距离过远")
+                    << " | 距离: " << targetDistance
+                    << " | 已点射时间: " << elapsedTime << "/" << currentDuration << "ms" << std::endl;
+
+                std::cout << "[操作] 紧急释放鼠标左键" << std::endl;
                 mouseController->LeftUp();
                 currentState = FireState::IDLE;
-                std::cout << "目标丢失，停止点射" << std::endl;
+                std::cout << "[点射] 目标丢失，停止点射，切换到IDLE状态" << std::endl;
+            }
+            else {
+                // 点射进行中，输出状态
+                if (frameCounter % 20 == 0) { // 降低输出频率
+                    std::cout << "[点射中] 已进行: " << elapsedTime << "/" << currentDuration
+                        << "ms | 目标距离: " << targetDistance << std::endl;
+                }
             }
             break;
 
         case FireState::BURST_COOLDOWN:
             // 冷却时间结束
             if (elapsedTime >= currentDuration) {
+                std::cout << "[转换] 冷却结束: " << elapsedTime << "/" << currentDuration << "ms" << std::endl;
+
                 // 如果目标仍然有效且在范围内，开始新一轮点射
                 if (hasValidTarget && targetDistance < 10.0f) {
                     // 有小概率插入短暂停顿，增加拟人性
                     if (gen() % 3 == 0) { // 约33%的概率
-                        Sleep(microPause(gen));
+                        int pauseTime = microPause(gen);
+                        std::cout << "[拟人] 插入短暂停顿: " << pauseTime << "ms" << std::endl;
+                        Sleep(pauseTime);
                     }
 
+                    std::cout << "[转换] BURST_COOLDOWN -> BURST_ACTIVE | 目标状态良好，开始新一轮点射" << std::endl;
+                    std::cout << "[操作] 按下鼠标左键" << std::endl;
                     mouseController->LeftDown();
                     currentState = FireState::BURST_ACTIVE;
                     currentDuration = burstDuration(gen);
                     lastStateChangeTime = currentTime;
-                    std::cout << "开始新点射，持续: " << currentDuration << "ms" << std::endl;
+                    std::cout << "[点射] 开始新点射，持续: " << currentDuration << "ms" << std::endl;
                 }
                 else {
+                    std::cout << "[转换] BURST_COOLDOWN -> IDLE | 原因: "
+                        << (!hasValidTarget ? "无有效目标" : "目标距离过远")
+                        << " | 距离: " << targetDistance << std::endl;
                     currentState = FireState::IDLE;
                 }
             }
+            else {
+                // 冷却进行中，输出状态
+                if (frameCounter % 30 == 0) { // 降低输出频率
+                    std::cout << "[冷却中] 已进行: " << elapsedTime << "/" << currentDuration
+                        << "ms | 目标状态: " << (hasValidTarget ? "有效" : "无效")
+                        << " | 距离: " << targetDistance << std::endl;
+                }
+            }
             break;
+        }
+
+        // 输出关键触发条件的状态变化
+        static bool prevHasTarget = false;
+        static float prevDistance = 999.0f;
+
+        if (hasValidTarget != prevHasTarget) {
+            std::cout << "[状态变化] 目标状态: " << (prevHasTarget ? "有效" : "无效")
+                << " -> " << (hasValidTarget ? "有效" : "无效") << std::endl;
+            prevHasTarget = hasValidTarget;
+        }
+
+        if (abs(targetDistance - prevDistance) > 5.0f) {
+            std::cout << "[状态变化] 目标距离: " << prevDistance << " -> " << targetDistance << std::endl;
+            prevDistance = targetDistance;
         }
 
         // 短暂睡眠，降低CPU使用率
