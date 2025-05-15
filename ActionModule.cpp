@@ -108,7 +108,7 @@ void ActionModule::EnablePIDDebug(bool enable) {
         std::cout << "PID调试模式已启用" << std::endl;
         std::cout << "使用以下键调整PID参数：" << std::endl;
         std::cout << "Q/W: 调整aimFov  - 当前值: " << aimFov << std::endl;
-        std::cout << "A/S: 调整Ki (积分系数) - 当前值: " << pidController.ki.load() << std::endl;
+        std::cout << "A/S: 调整Y轴控制力度 - 当前值: " << pidController.yControlFactor.load() << std::endl;
         std::cout << "Z/X: 调整Kd (微分系数) - 当前值: " << pidController.kd.load() << std::endl;
 
         // 启动PID调试线程
@@ -155,10 +155,12 @@ void ActionModule::HandleKeyPress(int key) {
     float kp = pidController.kp.load();
     float ki = pidController.ki.load();
     float kd = pidController.kd.load();
+    float yControlFactor = pidController.yControlFactor.load();
 
     const float pStep = 0.05f;
     const float iStep = 0.01f;
     const float dStep = 0.01f;
+    const float yFactorStep = 0.1f;
 
     switch (key) {
     case 'Q':
@@ -170,14 +172,14 @@ void ActionModule::HandleKeyPress(int key) {
         std::cout << "aimFov 调整为: " << aimFov << std::endl;
         break;
     case 'A':
-        ki = max(0.0f, ki - iStep);
-        pidController.ki.store(ki);
-        std::cout << "Ki 调整为: " << ki << std::endl;
+        yControlFactor = max(0.0f, yControlFactor - yFactorStep);
+        pidController.yControlFactor.store(yControlFactor);
+        std::cout << "Y轴控制力度 调整为: " << yControlFactor << std::endl;
         break;
     case 'S':
-        ki += iStep;
-        pidController.ki.store(ki);
-        std::cout << "Ki 调整为: " << ki << std::endl;
+        yControlFactor += yFactorStep;
+        pidController.yControlFactor.store(yControlFactor);
+        std::cout << "Y轴控制力度 调整为: " << yControlFactor << std::endl;
         break;
     case 'Z':
         kd = max(0.0f, kd - dStep);
@@ -379,6 +381,19 @@ void ActionModule::ProcessLoop() {
                         // 使用PID控制器计算移动值
                         auto pidOutput = ApplyPIDControl(centerToTargetX, centerToTargetY);
 
+                        // 获取Y轴控制力度
+                        float yControlFactor = pidController.yControlFactor.load();
+
+                        // 如果X轴已经足够接近目标（小于某个阈值），则减少Y轴移动或不移动
+                        float xThreshold = 5.0f; // X轴接近阈值
+                        if (abs(centerToTargetX) < xThreshold) {
+                            // X轴足够接近时，Y轴取消控制
+                            pidOutput.second = 0;
+                        }
+                        else {
+                            pidOutput.second *= yControlFactor; // Y轴控制力度
+                        }
+
                         // 归一化移动值到±10范围
                         auto normalizedMove = NormalizeMovement(pidOutput.first, pidOutput.second, 10.0f);
 
@@ -388,8 +403,6 @@ void ActionModule::ProcessLoop() {
                             static_cast<int>(normalizedMove.second),
                             length * humanizationFactor  // 距离乘以拟人化因子
                         );
-
-                     
                     }
                 }
             }
@@ -440,7 +453,7 @@ void ActionModule::FireControlLoop() {
 
         // 获取当前共享状态
         bool autoFireEnabled = sharedState->isAutoFireEnabled.load();
-       
+
         float targetDistance = sharedState->targetDistance.load();
 
         // 计算目标最近出现时间与当前时间的差值

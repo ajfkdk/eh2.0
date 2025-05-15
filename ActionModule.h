@@ -32,6 +32,7 @@ struct PIDController {
     std::atomic<float> kp{ 0.5f };  // 比例系数
     std::atomic<float> ki{ 0.1f }; // 积分系数
     std::atomic<float> kd{ 0.0f };  // 微分系数
+    std::atomic<float> yControlFactor{ 1.0f }; // Y轴控制力度系数，用于爆头率控制
 
     // 积分项限制
     float integralLimit = 10.0f;
