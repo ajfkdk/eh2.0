@@ -231,7 +231,7 @@ std::pair<float, float> ActionModule::ApplyPIDControl(float errorX, float errorY
     float ki = pidController.ki.load();
     float kd = pidController.kd.load();
 
-    // 计算微分项
+    // 计算微分项 在FPS直接通过YOLO观测会有大量的噪声，而PID中的D会放大噪声，所以一般设0
     float derivativeX = (errorX - pidController.previousErrorX) / dt;
     float derivativeY = (errorY - pidController.previousErrorY) / dt;
 
