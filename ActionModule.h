@@ -5,6 +5,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <chrono>
 #include "MouseController.h"
 #include "PredictionModule.h"
 #include "KeyboardListener.h"
@@ -22,6 +23,16 @@ struct SharedState {
     std::atomic<float> targetDistance{ 999.0f };
     std::atomic<bool> hasValidTarget{ false };
     std::mutex mutex;
+
+    // 目标状态稳定性计时器
+    std::chrono::steady_clock::time_point targetValidSince;  // 目标变为有效的时间点
+    std::chrono::steady_clock::time_point targetInvalidSince;  // 目标变为无效的时间点
+
+    SharedState() {
+        // 初始化时间点
+        targetValidSince = std::chrono::steady_clock::now();
+        targetInvalidSince = std::chrono::steady_clock::now();
+    }
 };
 
 // PID控制器结构体
