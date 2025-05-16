@@ -536,8 +536,7 @@ void ActionModule::RecoilControlLoop() {
         prevLeftButtonState = currentLeftButtonState;
 
         // 检查是否需要压枪
-        if (isRecoilEnabled && recoilState.isLeftButtonPressed.load() &&
-            (!sharedState->isAutoAimEnabled.load() || sharedState->targetDistance.load() >= aimFov)) {
+        if (isRecoilEnabled && recoilState.isLeftButtonPressed.load()) {
 
             auto currentTime = std::chrono::steady_clock::now();
             auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
