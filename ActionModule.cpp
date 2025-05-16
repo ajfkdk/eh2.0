@@ -606,7 +606,7 @@ void ActionModule::FireControlLoop() {
                 mouseController->LeftUp();
                 // 当点射结束时，触发压枪状态重置
                // recoilState.isLeftButtonPressed = false;
-                LogDebug("自动开火关闭，释放鼠标");
+               // LogDebug("自动开火关闭，释放鼠标");
             }
             currentState = FireState::IDLE;
             Sleep(50); // 减少CPU使用
@@ -621,9 +621,9 @@ void ActionModule::FireControlLoop() {
                 mouseController->LeftDown();
                 // 模拟按下左键时，设置压枪状态
                 if (sharedState->isRecoilControlEnabled.load()) {
-                    // recoilState.isLeftButtonPressed = true;
-                   // recoilState.pressStartTime = std::chrono::steady_clock::now();
-                   // recoilState.lastRecoilTime = std::chrono::steady_clock::now();
+                   recoilState.isLeftButtonPressed = true;
+                    recoilState.pressStartTime = std::chrono::steady_clock::now();
+                    recoilState.lastRecoilTime = std::chrono::steady_clock::now();
                 }
                 currentState = FireState::BURST_ACTIVE;
                 currentDuration = burstDuration(gen); // 随机点射持续时间
@@ -640,7 +640,7 @@ void ActionModule::FireControlLoop() {
             if (elapsedTime >= currentDuration) {
                 mouseController->LeftUp();
                 // 当点射结束时，触发压枪状态重置
-              //   recoilState.isLeftButtonPressed = false;
+                recoilState.isLeftButtonPressed = false;
                 LogDebug("点射结束，释放鼠标");
                 currentState = FireState::BURST_COOLDOWN;
                 currentDuration = burstCooldown(gen); // 随机冷却时间
@@ -651,7 +651,7 @@ void ActionModule::FireControlLoop() {
             else if (!targetInValidTimeWindow && targetDistance >= 10.0f) {
                 mouseController->LeftUp();
                 // 当点射结束时，触发压枪状态重置
-             //    recoilState.isLeftButtonPressed = false;
+                 recoilState.isLeftButtonPressed = false;
                 LogDebug("目标丢失，释放鼠标");
                 currentState = FireState::IDLE;
                 std::cout << "目标丢失，停止点射" << std::endl;
@@ -671,9 +671,9 @@ void ActionModule::FireControlLoop() {
                     mouseController->LeftDown();
                     // 模拟按下左键时，设置压枪状态
                     if (sharedState->isRecoilControlEnabled.load()) {
-                        //     recoilState.isLeftButtonPressed = true;
-                   //      recoilState.pressStartTime = std::chrono::steady_clock::now();
-                  //       recoilState.lastRecoilTime = std::chrono::steady_clock::now();
+                            recoilState.isLeftButtonPressed = true;
+                        recoilState.pressStartTime = std::chrono::steady_clock::now();
+                        recoilState.lastRecoilTime = std::chrono::steady_clock::now();
                     }
                     currentState = FireState::BURST_ACTIVE;
                     currentDuration = burstDuration(gen);
@@ -696,6 +696,6 @@ void ActionModule::FireControlLoop() {
         mouseController->LeftUp();
         LogDebug("退出时释放鼠标");
         // 当点射结束时，触发压枪状态重置
-     //    recoilState.isLeftButtonPressed = false;
+       recoilState.isLeftButtonPressed = false;
     }
 }

@@ -19,9 +19,9 @@ void KeyboardListener::ListenerLoop(KeyboardListener* instance) {
         if (IsKeyDown('E') && instance->onKeyPress) instance->onKeyPress('E');
         if (IsKeyDown('R') && instance->onKeyPress) instance->onKeyPress('R');
 
-        // ¼ì²éF/G
+        // ¼ì²éF/D
         if (IsKeyDown('F') && instance->onKeyPress) instance->onKeyPress('F');
-        if (IsKeyDown('G') && instance->onKeyPress) instance->onKeyPress('G');
+        if (IsKeyDown('D') && instance->onKeyPress) instance->onKeyPress('D');
 
         // ¼ì²éC/V
         if (IsKeyDown('C') && instance->onKeyPress) instance->onKeyPress('C');
