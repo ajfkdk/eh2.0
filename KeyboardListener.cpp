@@ -15,6 +15,17 @@ void KeyboardListener::ListenerLoop(KeyboardListener* instance) {
         if (IsKeyDown('Z') && instance->onKeyPress) instance->onKeyPress('Z');
         if (IsKeyDown('X') && instance->onKeyPress) instance->onKeyPress('X');
 
+        // 检查E/R
+        if (IsKeyDown('E') && instance->onKeyPress) instance->onKeyPress('E');
+        if (IsKeyDown('R') && instance->onKeyPress) instance->onKeyPress('R');
+
+        // 检查F/G
+        if (IsKeyDown('F') && instance->onKeyPress) instance->onKeyPress('F');
+        if (IsKeyDown('G') && instance->onKeyPress) instance->onKeyPress('G');
+
+        // 检查C/V
+        if (IsKeyDown('C') && instance->onKeyPress) instance->onKeyPress('C');
+        if (IsKeyDown('V') && instance->onKeyPress) instance->onKeyPress('V');
         // 降低CPU使用率
         Sleep(100);
     }
