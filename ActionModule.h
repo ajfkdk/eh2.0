@@ -26,8 +26,8 @@ struct SharedState {
 
     // 压枪相关状态
     std::atomic<bool> isRecoilControlEnabled{ true }; // 压枪开关
-    std::atomic<float> pressForce{ 10.0f }; // 压枪力度，默认3.0
-    std::atomic<int> pressTime{ 2000 }; // 压枪持续时间(ms)，默认1000ms
+    std::atomic<float> pressForce{ 5.0f }; // 压枪力度，默认3.0
+    std::atomic<int> pressTime{ 1400 }; // 压枪持续时间(ms)，默认1000ms
     std::atomic<bool> needPressDownWhenAim{ true }; // 自瞄时是否需要下压
 
     std::mutex mutex;
