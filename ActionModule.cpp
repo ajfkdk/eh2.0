@@ -512,97 +512,47 @@ std::string NowTimeString() {
 
 void ActionModule::RecoilControlLoop() {
     bool prevLeftButtonState = false;
-    int loopCount = 0;
 
     LogDebug("RecoilControlLoop started.");
 
     while (running.load()) {
         bool isRecoilEnabled = sharedState->isRecoilControlEnabled.load();
-        bool isAutoAimEnabled = sharedState->isAutoAimEnabled.load();
-        int targetDistance = sharedState->targetDistance.load();
-        int aimFov_ = aimFov;
-        float pressForce = sharedState->pressForce.load();
-        int pressTime = sharedState->pressTime.load();
-
-        // 每1000次循环打印一次状态，约1秒
-        if (loopCount % 1000 == 0) {
-            LogDebug(
-                "LoopCount: " << loopCount
-                << " | RecoilEnabled: " << isRecoilEnabled
-                << " | AutoAimEnabled: " << isAutoAimEnabled
-                << " | TargetDistance: " << targetDistance
-                << " | AimFov: " << aimFov_
-                << " | PressForce: " << pressForce
-                << " | PressTime: " << pressTime
-                << " | isLeftButtonPressed: " << recoilState.isLeftButtonPressed.load()
-            );
-        }
-        loopCount++;
-
         bool currentLeftButtonState = mouseController->IsLeftButtonDown();
 
         // 检测左键按下/松开
         if (currentLeftButtonState && !prevLeftButtonState) {
-            LogDebug("Left mouse button just pressed. RecoilEnabled=" << isRecoilEnabled);
+            LogDebug("左键按下");
             if (isRecoilEnabled) {
-                LogDebug("Start recoil state. Setting isLeftButtonPressed=true.");
+                LogDebug("Recoil control enabled, starting recoil state.");
                 recoilState.isLeftButtonPressed = true;
                 recoilState.pressStartTime = std::chrono::steady_clock::now();
                 recoilState.lastRecoilTime = std::chrono::steady_clock::now();
             }
-            else {
-                LogDebug("Recoil control is currently disabled, will not start recoil.");
-            }
         }
         else if (!currentLeftButtonState && prevLeftButtonState) {
-            LogDebug("Left mouse button just released. Setting isLeftButtonPressed=false.");
+            LogDebug("左键松开.");
             recoilState.isLeftButtonPressed = false;
+        }
+        else {
+            LogDebug("左键状态未改变.");
         }
         prevLeftButtonState = currentLeftButtonState;
 
         // 检查是否需要压枪
-        if (isRecoilEnabled) {
-            if (recoilState.isLeftButtonPressed.load()) {
-                if (!isAutoAimEnabled || targetDistance >= aimFov_) {
-                    auto currentTime = std::chrono::steady_clock::now();
-                    auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        currentTime - recoilState.pressStartTime).count();
-                    auto timeSinceLastRecoil = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        currentTime - recoilState.lastRecoilTime).count();
+        if (isRecoilEnabled && recoilState.isLeftButtonPressed.load()) {
 
-                    LogDebug(
-                        "Recoil check: elapsedTime=" << elapsedTime
-                        << "ms, timeSinceLastRecoil=" << timeSinceLastRecoil
-                        << "ms, pressTime=" << pressTime
-                    );
+            auto currentTime = std::chrono::steady_clock::now();
+            auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                currentTime - recoilState.pressStartTime).count();
+            auto timeSinceLastRecoil = std::chrono::duration_cast<std::chrono::milliseconds>(
+                currentTime - recoilState.lastRecoilTime).count();
 
-                    if (elapsedTime <= pressTime && timeSinceLastRecoil >= 16) {
-                        LogDebug("Triggering recoil: MoveToWithTime(0, " << static_cast<int>(pressForce) << ", 1)");
-                        mouseController->MoveToWithTime(0, static_cast<int>(pressForce), 1);
-                        recoilState.lastRecoilTime = currentTime;
-                        LogDebug("Updated lastRecoilTime.");
-                    }
-                    else if (elapsedTime > pressTime) {
-                        LogDebug("Not recoiling: elapsedTime (" << elapsedTime << "ms) > pressTime (" << pressTime << "ms)");
-                    }
-                    else if (timeSinceLastRecoil < 16) {
-                        LogDebug("Not recoiling: timeSinceLastRecoil (" << timeSinceLastRecoil << "ms) < 16ms");
-                    }
-                }
-                else {
-                    LogDebug("Not recoiling: AutoAim enabled and targetDistance (" << targetDistance << ") < aimFov (" << aimFov_ << ")");
-                }
-            }
-            else {
-                // 仅在循环少量打印
-                if (loopCount % 1000 == 0) {
-                    LogDebug("Left button not pressed, skipping recoil.");
-                }
-            }
-        }
-        else {
-            if (loopCount % 1000 == 0) {
-                LogDebug("Recoil control is disabled, skipping all recoil logic.");
+            // 可压枪判定
+            if (elapsedTime <= sharedState->pressTime.load() && timeSinceLastRecoil >= 16) {
+                float pressForce = sharedState->pressForce.load();
+                LogDebug("Performing recoil: elapsedTime=" << elapsedTime << "ms, pressForce=" << pressForce);
+                mouseController->MoveToWithTime(0, static_cast<int>(pressForce), 100);
+                recoilState.lastRecoilTime = currentTime;
             }
         }
 
@@ -612,6 +562,7 @@ void ActionModule::RecoilControlLoop() {
 
     LogDebug("RecoilControlLoop ended.");
 }
+
 // 点射控制线程 - 负责控制开火行为
 void ActionModule::FireControlLoop() {
     // 点射状态机状态
@@ -661,7 +612,7 @@ void ActionModule::FireControlLoop() {
             if (mouseController->IsLeftButtonDown()) {
                 mouseController->LeftUp();
                 // 当点射结束时，触发压枪状态重置
-                recoilState.isLeftButtonPressed = false;
+               // recoilState.isLeftButtonPressed = false;
             }
             currentState = FireState::IDLE;
             Sleep(50); // 减少CPU使用
@@ -676,9 +627,9 @@ void ActionModule::FireControlLoop() {
                 mouseController->LeftDown();
                 // 模拟按下左键时，设置压枪状态
                 if (sharedState->isRecoilControlEnabled.load()) {
-                    recoilState.isLeftButtonPressed = true;
-                    recoilState.pressStartTime = std::chrono::steady_clock::now();
-                    recoilState.lastRecoilTime = std::chrono::steady_clock::now();
+                    // recoilState.isLeftButtonPressed = true;
+                   // recoilState.pressStartTime = std::chrono::steady_clock::now();
+                   // recoilState.lastRecoilTime = std::chrono::steady_clock::now();
                 }
                 currentState = FireState::BURST_ACTIVE;
                 currentDuration = burstDuration(gen); // 随机点射持续时间
@@ -695,7 +646,7 @@ void ActionModule::FireControlLoop() {
             if (elapsedTime >= currentDuration) {
                 mouseController->LeftUp();
                 // 当点射结束时，触发压枪状态重置
-                recoilState.isLeftButtonPressed = false;
+              //   recoilState.isLeftButtonPressed = false;
                 currentState = FireState::BURST_COOLDOWN;
                 currentDuration = burstCooldown(gen); // 随机冷却时间
                 lastStateChangeTime = currentTime;
@@ -705,7 +656,7 @@ void ActionModule::FireControlLoop() {
             else if (!targetInValidTimeWindow && targetDistance >= 10.0f) {
                 mouseController->LeftUp();
                 // 当点射结束时，触发压枪状态重置
-                recoilState.isLeftButtonPressed = false;
+             //    recoilState.isLeftButtonPressed = false;
                 currentState = FireState::IDLE;
                 std::cout << "目标丢失，停止点射" << std::endl;
             }
@@ -724,9 +675,9 @@ void ActionModule::FireControlLoop() {
                     mouseController->LeftDown();
                     // 模拟按下左键时，设置压枪状态
                     if (sharedState->isRecoilControlEnabled.load()) {
-                        recoilState.isLeftButtonPressed = true;
-                        recoilState.pressStartTime = std::chrono::steady_clock::now();
-                        recoilState.lastRecoilTime = std::chrono::steady_clock::now();
+                        //     recoilState.isLeftButtonPressed = true;
+                   //      recoilState.pressStartTime = std::chrono::steady_clock::now();
+                  //       recoilState.lastRecoilTime = std::chrono::steady_clock::now();
                     }
                     currentState = FireState::BURST_ACTIVE;
                     currentDuration = burstDuration(gen);
@@ -748,6 +699,6 @@ void ActionModule::FireControlLoop() {
     if (mouseController->IsLeftButtonDown()) {
         mouseController->LeftUp();
         // 当点射结束时，触发压枪状态重置
-        recoilState.isLeftButtonPressed = false;
+     //    recoilState.isLeftButtonPressed = false;
     }
 }
