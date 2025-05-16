@@ -521,20 +521,14 @@ void ActionModule::RecoilControlLoop() {
 
         // ¼ì²â×ó¼ü°´ÏÂ/ËÉ¿ª
         if (currentLeftButtonState && !prevLeftButtonState) {
-            LogDebug("×ó¼ü°´ÏÂ");
             if (isRecoilEnabled) {
-                LogDebug("Recoil control enabled, starting recoil state.");
                 recoilState.isLeftButtonPressed = true;
                 recoilState.pressStartTime = std::chrono::steady_clock::now();
                 recoilState.lastRecoilTime = std::chrono::steady_clock::now();
             }
         }
         else if (!currentLeftButtonState && prevLeftButtonState) {
-            LogDebug("×ó¼üËÉ¿ª.");
             recoilState.isLeftButtonPressed = false;
-        }
-        else {
-            LogDebug("×ó¼ü×´Ì¬Î´¸Ä±ä.");
         }
         prevLeftButtonState = currentLeftButtonState;
 
@@ -550,7 +544,6 @@ void ActionModule::RecoilControlLoop() {
             // ¿ÉÑ¹Ç¹ÅÐ¶¨
             if (elapsedTime <= sharedState->pressTime.load() && timeSinceLastRecoil >= 16) {
                 float pressForce = sharedState->pressForce.load();
-                LogDebug("Performing recoil: elapsedTime=" << elapsedTime << "ms, pressForce=" << pressForce);
                 mouseController->MoveToWithTime(0, static_cast<int>(pressForce), 100);
                 recoilState.lastRecoilTime = currentTime;
             }
