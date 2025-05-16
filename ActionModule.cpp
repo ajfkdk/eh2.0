@@ -513,7 +513,7 @@ std::string NowTimeString() {
 void ActionModule::RecoilControlLoop() {
     bool prevLeftButtonState = false;
 
-    LogDebug("RecoilControlLoop started.");
+  
 
     while (running.load()) {
         bool isRecoilEnabled = sharedState->isRecoilControlEnabled.load();
@@ -553,7 +553,7 @@ void ActionModule::RecoilControlLoop() {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
-    LogDebug("RecoilControlLoop ended.");
+ 
 }
 
 // 点射控制线程 - 负责控制开火行为
@@ -606,6 +606,7 @@ void ActionModule::FireControlLoop() {
                 mouseController->LeftUp();
                 // 当点射结束时，触发压枪状态重置
                // recoilState.isLeftButtonPressed = false;
+                LogDebug("自动开火关闭，释放鼠标");
             }
             currentState = FireState::IDLE;
             Sleep(50); // 减少CPU使用
@@ -640,6 +641,7 @@ void ActionModule::FireControlLoop() {
                 mouseController->LeftUp();
                 // 当点射结束时，触发压枪状态重置
               //   recoilState.isLeftButtonPressed = false;
+                LogDebug("点射结束，释放鼠标");
                 currentState = FireState::BURST_COOLDOWN;
                 currentDuration = burstCooldown(gen); // 随机冷却时间
                 lastStateChangeTime = currentTime;
@@ -650,6 +652,7 @@ void ActionModule::FireControlLoop() {
                 mouseController->LeftUp();
                 // 当点射结束时，触发压枪状态重置
              //    recoilState.isLeftButtonPressed = false;
+                LogDebug("目标丢失，释放鼠标");
                 currentState = FireState::IDLE;
                 std::cout << "目标丢失，停止点射" << std::endl;
             }
@@ -691,6 +694,7 @@ void ActionModule::FireControlLoop() {
     // 确保退出时释放鼠标按键
     if (mouseController->IsLeftButtonDown()) {
         mouseController->LeftUp();
+        LogDebug("退出时释放鼠标");
         // 当点射结束时，触发压枪状态重置
      //    recoilState.isLeftButtonPressed = false;
     }
