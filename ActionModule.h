@@ -23,6 +23,13 @@ struct SharedState {
     std::atomic<bool> isAutoFireEnabled{ false };
     std::atomic<float> targetDistance{ 999.0f };
     std::chrono::steady_clock::time_point targetValidSince{ std::chrono::steady_clock::now() }; // 添加目标最近出现时间点
+
+    // 压枪相关状态
+    std::atomic<bool> isRecoilControlEnabled{ false }; // 压枪开关
+    std::atomic<float> pressForce{ 3.0f }; // 压枪力度，默认3.0
+    std::atomic<int> pressTime{ 1000 }; // 压枪持续时间(ms)，默认1000ms
+    std::atomic<bool> needPressDownWhenAim{ true }; // 自瞄时是否需要下压
+
     std::mutex mutex;
 };
 
@@ -61,10 +68,18 @@ struct PIDController {
     }
 };
 
+// 压枪状态结构体
+struct RecoilControlState {
+    std::atomic<bool> isLeftButtonPressed{ false }; // 鼠标左键是否按下
+    std::chrono::steady_clock::time_point pressStartTime; // 按下开始时间
+    std::chrono::steady_clock::time_point lastRecoilTime; // 上次压枪时间
+};
+
 class ActionModule {
 private:
     static std::thread actionThread;
     static std::thread fireThread; // 点射控制线程
+    static std::thread recoilThread; // 压枪控制线程
     static std::thread pidDebugThread; // PID调试线程
     static std::atomic<bool> running;
     static std::atomic<bool> pidDebugEnabled;
@@ -73,6 +88,7 @@ private:
     static std::shared_ptr<SharedState> sharedState; // 共享状态
     static PIDController pidController; // PID控制器
     static std::unique_ptr<KeyboardListener> keyboardListener; // 键盘监听器
+    static RecoilControlState recoilState; // 压枪状态
 
     // 预测相关变量
     static float predictAlpha;  // 预测系数
@@ -94,6 +110,9 @@ private:
     // PID调试线程函数
     static void PIDDebugLoop();
 
+    // 压枪控制线程函数
+    static void RecoilControlLoop();
+
     // 处理键盘按键事件
     static void HandleKeyPress(int key);
 
@@ -105,6 +124,9 @@ private:
 
     // 预测下一帧位置
     static Point2D PredictNextPosition(const Point2D& current);
+
+    // 应用压枪效果
+    static float ApplyRecoilControl();
 
 public:
     // 初始化模块
