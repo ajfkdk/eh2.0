@@ -121,11 +121,12 @@ int main() {
         // 可选：采集模块-->设置调试模式和显示检测框
         CaptureModule::SetCaptureDebug(true);
 
-        // 可选：设置调试模式和显示检测框
+        // 可选：设置显示预测结果，蓝色的点为预测点
         DetectionModule::SetDebugMode(true);
+        // 可选：显示检测框
         DetectionModule::SetShowDetections(true);
 
-        // 设置预测模块的调试模式
+        // 设置预测模块的调试模式，发送数据到检测模块，用于显示
         PredictionModule::SetDebugMode(true);  
 
         // 启用PID调试功能（如需要）

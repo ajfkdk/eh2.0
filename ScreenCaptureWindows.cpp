@@ -29,7 +29,7 @@ namespace {
 
     // 控制标志
     std::atomic<bool> running{ false };
-    std::atomic<bool> debugMode{ false };
+    std::atomic<bool> ShowPredict{ false };
     std::atomic<bool> showCaptureDebug{ false }; // 新增：控制是否显示捕获的屏幕信息
 
     // FPS计算相关变量
@@ -308,7 +308,7 @@ void captureThreadFunc(std::shared_ptr<IFrameCapture> capturer) {
             Frame newFrame(frame);
             frameBuffer.write(newFrame);
 
-            if (debugMode.load()) {
+            if (ShowPredict.load()) {
                 auto endTime = std::chrono::high_resolution_clock::now();
                 std::chrono::duration<double, std::milli> elapsed = endTime - startTime;
                 std::cout << "Capture time: " << elapsed.count() << " ms" << std::endl;
@@ -429,7 +429,7 @@ namespace CaptureModule {
 
     // 设置调试模式
     void SetDebugMode(bool enabled) {
-        debugMode.store(enabled);
+        ShowPredict.store(enabled);
     }
 
     // 设置屏幕捕获调试模式

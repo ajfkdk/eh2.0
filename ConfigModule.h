@@ -25,6 +25,10 @@ struct HelperConfig {
     static constexpr int humanizationFactor = 2; // 拟人化因子 
     static constexpr float deadZoneThreshold = 7.f; // 死区阈值
 
+    // 检测模块相关参数
+    std::atomic<float> confidenceThreshold{ 0.7f }; // 置信度阈值
+    std::atomic<bool> showDetections{ false }; // 是否显示检测框
+    std::atomic<bool> showPredict{ false }; // 是否显示预测
 
     // 目标类别 classes{ "ct_body", "ct_head", "t_body", "t_head" };
     std::vector<int> targetClasses{ 1, 3 };
@@ -54,6 +58,16 @@ public:
     // 获取/设置目标类别
     static std::vector<int> GetTargetClasses();
     static void SetTargetClasses(const std::vector<int>& classes);
+
+    // 检测模块相关方法
+    static float GetConfidenceThreshold();
+    static void SetConfidenceThreshold(float threshold);
+
+    static bool GetShowDetections();
+    static void SetShowDetections(bool show);
+
+    static bool GetShowPredict();
+    static void SetShowPredict(bool show);
 
 private:
     static std::unique_ptr<KeyboardListener> keyboardListener;

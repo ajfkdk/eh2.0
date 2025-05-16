@@ -48,7 +48,9 @@ void ConfigModule::EnableConfigDebug(bool enable) {
         std::cout << "C: 切换压枪开关 - 当前状态: " << (config->isAutoRecoilEnabled.load() ? "开启" : "关闭") << std::endl;
         std::cout << "D/F: 调整压枪力度 - 当前值: " << config->pressForce.load() << std::endl;
         std::cout << "E/R: 调整压枪持续时间 - 当前值: " << config->pressTime.load() << "ms" << std::endl;
-      
+        std::cout << "T: 切换显示检测框 - 当前状态: " << (config->showDetections.load() ? "开启" : "关闭") << std::endl;
+        std::cout << "Y: 切换显示预测 - 当前状态: " << (config->showPredict.load() ? "开启" : "关闭") << std::endl;
+        std::cout << "U/I: 调整置信度阈值 - 当前值: " << config->confidenceThreshold.load() << std::endl;
         std::cout << std::endl;
 
         configDebugThread = std::thread(ConfigDebugLoop);
@@ -70,9 +72,11 @@ void ConfigModule::HandleKeyPress(int key) {
     float pressForce = config->pressForce.load();
     int pressTime = config->pressTime.load();
     int aimFov = config->aimFov.load();
+    float confidenceThreshold = config->confidenceThreshold.load();
 
     const float pressForceStep = 0.5f;
     const int pressTimeStep = 20;
+    const float confidenceStep = 0.05f;
 
     switch (key) {
     case 'Q':
@@ -109,7 +113,24 @@ void ConfigModule::HandleKeyPress(int key) {
         config->pressTime.store(pressTime);
         std::cout << "压枪持续时间 调整为: " << pressTime << "ms" << std::endl;
         break;
-   
+    case 'T':
+        config->showDetections = !config->showDetections.load();
+        std::cout << "显示检测框: " << (config->showDetections.load() ? "开启" : "关闭") << std::endl;
+        break;
+    case 'Y':
+        config->showPredict = !config->showPredict.load();
+        std::cout << "显示预测: " << (config->showPredict.load() ? "开启" : "关闭") << std::endl;
+        break;
+    case 'U':
+        confidenceThreshold = max(0.1f, confidenceThreshold - confidenceStep);
+        config->confidenceThreshold.store(confidenceThreshold);
+        std::cout << "置信度阈值 调整为: " << confidenceThreshold << std::endl;
+        break;
+    case 'I':
+        confidenceThreshold = min(0.95f, confidenceThreshold + confidenceStep);
+        config->confidenceThreshold.store(confidenceThreshold);
+        std::cout << "置信度阈值 调整为: " << confidenceThreshold << std::endl;
+        break;
     }
 }
 
@@ -127,4 +148,28 @@ std::vector<int> ConfigModule::GetTargetClasses() {
 void ConfigModule::SetTargetClasses(const std::vector<int>& classes) {
     std::lock_guard<std::mutex> lock(config->targetClassesMutex);
     config->targetClasses = classes;
+}
+
+float ConfigModule::GetConfidenceThreshold() {
+    return config->confidenceThreshold.load();
+}
+
+void ConfigModule::SetConfidenceThreshold(float threshold) {
+    config->confidenceThreshold.store(threshold);
+}
+
+bool ConfigModule::GetShowDetections() {
+    return config->showDetections.load();
+}
+
+void ConfigModule::SetShowDetections(bool show) {
+    config->showDetections.store(show);
+}
+
+bool ConfigModule::GetShowPredict() {
+    return config->showPredict.load();
+}
+
+void ConfigModule::SetShowPredict(bool show) {
+    config->showPredict.store(show);
 }

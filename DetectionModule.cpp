@@ -1,5 +1,6 @@
 #include "DetectionModule.h"
 #include "YOLODetector.h"
+#include "ConfigModule.h"
 #include <iostream>
 #include <chrono>
 #include <memory>
@@ -38,13 +39,12 @@ namespace {
 
     // 控制标志
     std::atomic<bool> running{ false };
-    std::atomic<bool> debugMode{ false };
-    std::atomic<bool> showDetections{ false };
 
     // 预测点相关变量
     std::atomic<bool> hasPredictionPoint{ false };
     std::atomic<int> predictionPointX{ 0 };
     std::atomic<int> predictionPointY{ 0 };
+
 
     // Debug帧
     std::mutex debugFrameMutex;
@@ -76,7 +76,7 @@ void detectionThreadFunc() {
 
                 // 为debug模式准备帧
                 cv::Mat debugFrame;
-                if (debugMode.load() && showDetections.load()) {
+                if (ConfigModule::GetShowPredict()) {  // 使用ConfigModule
                     debugFrame = resizedImage.clone();
 
                     // 在debug帧上绘制检测框
@@ -163,11 +163,34 @@ namespace DetectionModule {
         singleResultBuffer.open();
         multiResultBuffer.open();
 
-        // 显示设置
-        detector->SetShowDetections(showDetections.load());
+        // 显示设置 - 使用ConfigModule
+        detector->SetShowDetections(ConfigModule::GetShowDetections());
+        detector->SetConfidenceThreshold(ConfigModule::GetConfidenceThreshold());
 
         // 启动检测线程
         return std::thread(detectionThreadFunc);
+    }
+
+    void SetDebugMode(bool enabled) {
+        ConfigModule::SetShowPredict(enabled);
+    }
+
+    bool IsDebugModeEnabled() {
+        return ConfigModule::GetShowPredict();
+    }
+
+    void SetShowDetections(bool show) {
+        ConfigModule::SetShowDetections(show);
+        if (detector) {
+            detector->SetShowDetections(show);
+        }
+    }
+
+    void SetConfidenceThreshold(float threshold) {
+        ConfigModule::SetConfidenceThreshold(threshold);
+        if (detector) {
+            detector->SetConfidenceThreshold(threshold);
+        }
     }
 
     bool GetLatestDetectionResult(DetectionResult& result) {
@@ -200,13 +223,7 @@ namespace DetectionModule {
         running.store(false);
     }
 
-    void SetDebugMode(bool enabled) {
-        debugMode.store(enabled);
-    }
-
-    bool IsDebugModeEnabled() {
-        return debugMode.load();
-    }
+   
 
     bool GetDebugFrame(cv::Mat& frame) {
         std::lock_guard<std::mutex> lock(debugFrameMutex);
@@ -221,18 +238,5 @@ namespace DetectionModule {
         predictionPointX.store(x);
         predictionPointY.store(y);
         hasPredictionPoint.store(true);
-    }
-
-    void SetShowDetections(bool show) {
-        showDetections.store(show);
-        if (detector) {
-            detector->SetShowDetections(show);
-        }
-    }
-
-    void SetConfidenceThreshold(float threshold) {
-        if (detector) {
-            detector->SetConfidenceThreshold(threshold);
-        }
     }
 }
