@@ -383,6 +383,7 @@ void ActionModule::ProcessLoop() {
 
         // 如果有有效预测结果
         if (hasPrediction && prediction.x != 999 && prediction.y != 999) {
+            std::cout << "检测到目标: (" << prediction.x << ", " << prediction.y << ")" << std::endl;
             // 获取屏幕分辨率
             int screenWidth = GetSystemMetrics(SM_CXSCREEN);
             int screenHeight = GetSystemMetrics(SM_CYSCREEN);
@@ -413,6 +414,7 @@ void ActionModule::ProcessLoop() {
 
             // 处理自瞄功能
             if (sharedState->isAutoAimEnabled && mouseController && !mouseController->IsMouseMoving() && length < config->aimFov.load()) {
+
                 bool isPredictionMode = usePrediction.load();
 
                 // 根据当前模式选择使用PID控制或预测功能
@@ -451,7 +453,7 @@ void ActionModule::ProcessLoop() {
                     if (length >= config->deadZoneThreshold) {
                         // 使用PID控制器计算移动值
                         auto pidOutput = ApplyPIDControl(centerToTargetX, centerToTargetY);
-
+                        std::cout <<"PID输出: (" << pidOutput.first << ", " << pidOutput.second << ")" << std::endl;
                         // 获取Y轴控制力度
                         float yControlFactor = pidController.yControlFactor.load();
 
@@ -465,7 +467,7 @@ void ActionModule::ProcessLoop() {
                             config->needPressDownWhenAim.load()) {
                             normalizedMove.second = CalculateRecoilCompensation();
                         }
-
+                        std::cout <<"PID输出222: (" << normalizedMove.first << ", " << normalizedMove.second << ")" << std::endl;
                         // 使用控制器移动鼠标(相对坐标)
                         mouseController->MoveToWithTime(
                             static_cast<int>(normalizedMove.first),

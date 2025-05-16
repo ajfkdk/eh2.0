@@ -20,7 +20,7 @@ struct HelperConfig {
 
     // 自瞄相关参数
     std::atomic<float> predictAlpha{ 0.3f }; // 预测系数，默认0.3，范围0.2~0.5
-    std::atomic<int> aimFov{ 35 }; // 瞄准视场角度
+    std::atomic<int> aimFov{ 45 }; // 瞄准视场角度
     static constexpr int targetValidDurationMs = 200; // 目标有效持续时间(毫秒)
     static constexpr int humanizationFactor = 2; // 拟人化因子 
     static constexpr float deadZoneThreshold = 7.f; // 死区阈值
