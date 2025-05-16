@@ -4,6 +4,8 @@
 #include <chrono>
 #include <memory>
 #include <thread>
+#include <vector>
+#include <mutex>
 #include "KeyboardListener.h"
 
 // 配置参数结构体
@@ -24,6 +26,9 @@ struct HelperConfig {
     static constexpr float deadZoneThreshold = 7.f; // 死区阈值
 
 
+    // 目标类别 classes{ "ct_body", "ct_head", "t_body", "t_head" };
+    std::vector<int> targetClasses{ 1, 3 };
+    std::mutex targetClassesMutex;
 };
 
 class ConfigModule {
@@ -45,6 +50,10 @@ public:
 
     // 处理键盘按键事件
     static void HandleKeyPress(int key);
+
+    // 获取/设置目标类别
+    static std::vector<int> GetTargetClasses();
+    static void SetTargetClasses(const std::vector<int>& classes);
 
 private:
     static std::unique_ptr<KeyboardListener> keyboardListener;
