@@ -408,53 +408,70 @@ void ActionModule::ProcessLoop() {
         // 获取最新预测结果
         PredictionResult prediction;
         bool hasPrediction = PredictionModule::GetLatestPrediction(prediction);
-
+        
+        // 如果有有效预测结果
         // 如果有有效预测结果
         if (hasPrediction && prediction.x != 999 && prediction.y != 999) {
+            std::cout << "[DEBUG] 有效预测结果: prediction.x=" << prediction.x << ", prediction.y=" << prediction.y << std::endl;
             // 获取屏幕分辨率
             int screenWidth = GetSystemMetrics(SM_CXSCREEN);
             int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+            std::cout << "[DEBUG] 屏幕分辨率: screenWidth=" << screenWidth << ", screenHeight=" << screenHeight << std::endl;
 
             // 计算屏幕中心点
             int screenCenterX = screenWidth / 2;
             int screenCenterY = screenHeight / 2;
+            std::cout << "[DEBUG] 屏幕中心: screenCenterX=" << screenCenterX << ", screenCenterY=" << screenCenterY << std::endl;
 
             // 图像中心的左上角偏移到屏幕中心的图像左上角
             float offsetX = screenCenterX - 320.0f / 2;
             float offsetY = screenCenterY - 320.0f / 2;
+            std::cout << "[DEBUG] 偏移: offsetX=" << offsetX << ", offsetY=" << offsetY << std::endl;
 
             // 计算目标坐标
             int targetX = static_cast<int>(offsetX + prediction.x);
             int targetY = static_cast<int>(offsetY + prediction.y);
+            std::cout << "[DEBUG] 目标坐标: targetX=" << targetX << ", targetY=" << targetY << std::endl;
 
             // 计算从屏幕中心到目标的相对距离
             float centerToTargetX = static_cast<float>(targetX - screenCenterX);
             float centerToTargetY = static_cast<float>(targetY - screenCenterY);
+            std::cout << "[DEBUG] 相对距离: centerToTargetX=" << centerToTargetX << ", centerToTargetY=" << centerToTargetY << std::endl;
 
             // 计算长度
             float length = std::sqrt(centerToTargetX * centerToTargetX + centerToTargetY * centerToTargetY);
+            std::cout << "[DEBUG] 距离 length=" << length << std::endl;
 
             // 更新目标距离和有效目标标志到共享状态
             sharedState->targetDistance = length;
-            // 更新目标最近出现时间点
             sharedState->targetValidSince = std::chrono::steady_clock::now();
+            std::cout << "[DEBUG] 目标距离已写入 sharedState, 时间重置" << std::endl;
 
             // 处理自瞄功能
+            std::cout << "[DEBUG] isAutoAimEnabled=" << sharedState->isAutoAimEnabled
+                << ", MouseMoving=" << (mouseController ? mouseController->IsMouseMoving() : -1)
+                << ", length=" << length << ", aimFov=" << aimFov << std::endl;
+
             if (sharedState->isAutoAimEnabled && mouseController && !mouseController->IsMouseMoving() && length < aimFov) {
                 bool isPredictionMode = usePrediction.load();
+                std::cout << "[DEBUG] 自瞄分支: 使用" << (isPredictionMode ? "预测模式" : "PID模式") << std::endl;
 
                 // 根据当前模式选择使用PID控制或预测功能
                 if (isPredictionMode) {
                     // 预测模式
                     if (length >= deadZoneThreshold) {
+                        std::cout << "[DEBUG] 预测模式: length >= deadZoneThreshold, length=" << length << std::endl;
+
                         // 归一化移动值到±10范围
                         auto normalizedMove = NormalizeMovement(centerToTargetX, centerToTargetY, 15.0f);
+                        std::cout << "[DEBUG] 预测模式: normalizedMove=(" << normalizedMove.first << ", " << normalizedMove.second << ")" << std::endl;
 
                         // 当前目标坐标
                         Point2D currentTarget = { normalizedMove.first, normalizedMove.second };
 
                         // 在移动层面上进行简单预测
                         Point2D predictedTarget = PredictNextPosition(currentTarget);
+                        std::cout << "[DEBUG] 预测模式: predictedTarget=(" << predictedTarget.x << ", " << predictedTarget.y << ")" << std::endl;
 
                         // 计算压枪补偿
                         float recoilCompensation = 0.0f;
@@ -462,29 +479,37 @@ void ActionModule::ProcessLoop() {
                             mouseController->IsLeftButtonDown() &&
                             sharedState->needPressDownWhenAim.load()) {
                             recoilCompensation = CalculateRecoilCompensation();
+                            std::cout << "[DEBUG] 预测模式: 压枪补偿 recoilCompensation=" << recoilCompensation << std::endl;
                         }
 
                         // 使用控制器移动鼠标(相对坐标)，加入压枪补偿
                         mouseController->MoveToWithTime(
                             static_cast<int>(predictedTarget.x),
                             static_cast<int>(predictedTarget.y + recoilCompensation),
-                            length * humanizationFactor  // 距离乘以拟人化因子
+                            length * humanizationFactor
                         );
+                        std::cout << "[DEBUG] 预测模式: MoveToWithTime(x=" << predictedTarget.x
+                            << ", y=" << (predictedTarget.y + recoilCompensation)
+                            << ", time=" << length * humanizationFactor << ")" << std::endl;
 
-                        // 通知预测模块鼠标移动了，用于补充鼠标补偿计算
                         PredictionModule::NotifyMouseMovement(normalizedMove.first, normalizedMove.second);
+                        std::cout << "[DEBUG] 预测模式: 通知 PredictionModule 鼠标移动" << std::endl;
                     }
                 }
                 else {
                     // PID控制模式
                     if (length >= deadZoneThreshold) {
+                        std::cout << "[DEBUG] PID模式: length >= deadZoneThreshold, length=" << length << std::endl;
+
                         // 使用PID控制器计算移动值
                         auto pidOutput = ApplyPIDControl(centerToTargetX, centerToTargetY);
+                        std::cout << "[DEBUG] PID模式: pidOutput=(" << pidOutput.first << ", " << pidOutput.second << ")" << std::endl;
 
                         // 获取Y轴控制力度
                         float yControlFactor = pidController.yControlFactor.load();
-
                         pidOutput.second *= yControlFactor; // Y轴控制力度
+                        std::cout << "[DEBUG] PID模式: yControlFactor=" << yControlFactor
+                            << ", pidOutput.second after factor=" << pidOutput.second << std::endl;
 
                         // 计算压枪补偿
                         float recoilCompensation = 0.0f;
@@ -492,6 +517,7 @@ void ActionModule::ProcessLoop() {
                             mouseController->IsLeftButtonDown() &&
                             sharedState->needPressDownWhenAim.load()) {
                             recoilCompensation = CalculateRecoilCompensation();
+                            std::cout << "[DEBUG] PID模式: 压枪补偿 recoilCompensation=" << recoilCompensation << std::endl;
                         }
 
                         // 归一化移动值到±10范围
@@ -500,45 +526,59 @@ void ActionModule::ProcessLoop() {
                             pidOutput.second + recoilCompensation,
                             10.0f
                         );
+                        std::cout << "[DEBUG] PID模式: normalizedMove=(" << normalizedMove.first
+                            << ", " << normalizedMove.second << ")" << std::endl;
 
                         // 使用控制器移动鼠标(相对坐标)
                         mouseController->MoveToWithTime(
                             static_cast<int>(normalizedMove.first),
                             static_cast<int>(normalizedMove.second),
-                            length * humanizationFactor  // 距离乘以拟人化因子
+                            length * humanizationFactor
                         );
+                        std::cout << "[DEBUG] PID模式: MoveToWithTime(x=" << normalizedMove.first
+                            << ", y=" << normalizedMove.second
+                            << ", time=" << length * humanizationFactor << ")" << std::endl;
                     }
                 }
             }
             else if (!sharedState->isAutoAimEnabled) {
+                std::cout << "[DEBUG] 自瞄关闭分支, usePrediction=" << usePrediction.load() << std::endl;
                 // 当自瞄关闭时重置控制器状态
                 if (usePrediction.load()) {
                     hasLastTarget = false;
+                    std::cout << "[DEBUG] 预测模式: hasLastTarget 清零" << std::endl;
                 }
                 else {
                     pidController.Reset();
+                    std::cout << "[DEBUG] PID控制器重置" << std::endl;
                 }
 
                 // 如果自瞄关闭但压枪开启，处理单独的压枪逻辑
                 if (sharedState->isAutoRecoilEnabled.load() && mouseController->IsLeftButtonDown()) {
                     float recoilCompensation = CalculateRecoilCompensation();
+                    std::cout << "[DEBUG] 压枪分支: recoilCompensation=" << recoilCompensation << std::endl;
                     if (recoilCompensation > 0) {
-                        // 移动鼠标实现压枪
                         mouseController->MoveToWithTime(0, static_cast<int>(recoilCompensation), 1);
+                        std::cout << "[DEBUG] 压枪分支: MoveToWithTime(0, " << static_cast<int>(recoilCompensation) << ", 1)" << std::endl;
                     }
                 }
             }
         }
         else {
+            std::cout << "[DEBUG] 没有有效目标" << std::endl;
             // 无目标情况下的压枪处理
             if (sharedState->isAutoRecoilEnabled.load() && mouseController->IsLeftButtonDown()) {
                 float recoilCompensation = CalculateRecoilCompensation();
+                std::cout << "[DEBUG] 无目标压枪: recoilCompensation=" << recoilCompensation << std::endl;
                 if (recoilCompensation > 0) {
-                    // 移动鼠标实现压枪
                     mouseController->MoveToWithTime(0, static_cast<int>(recoilCompensation), 1);
+                    std::cout << "[DEBUG] 无目标压枪: MoveToWithTime(0, " << static_cast<int>(recoilCompensation) << ", 1)" << std::endl;
                 }
             }
         }
+
+        // 短暂睡眠，减少CPU使用
+        Sleep(1);
 
         // 短暂睡眠，减少CPU使用
         Sleep(1);
