@@ -1,4 +1,3 @@
-// ActionModule.cpp
 #include "ActionModule.h"
 #include <iostream>
 #include <cmath>
@@ -44,6 +43,9 @@ std::thread ActionModule::Initialize() {
 
     // 设置运行标志
     running.store(true);
+
+    // 初始化压枪状态
+    ResetRecoilState();
 
     // 启动自瞄处理线程
     actionThread = std::thread(ProcessLoop);
@@ -156,11 +158,15 @@ void ActionModule::HandleKeyPress(int key) {
     float ki = pidController.ki.load();
     float kd = pidController.kd.load();
     float yControlFactor = pidController.yControlFactor.load();
+    float pressForce = sharedState->pressForce.load();
+    int pressTime = sharedState->pressTime.load();
 
     const float pStep = 0.05f;
     const float iStep = 0.01f;
     const float dStep = 0.01f;
     const float yFactorStep = 0.1f;
+    const float pressForceStep = 0.5f;
+    const int pressTimeStep = 20;
 
     switch (key) {
     case 'Q':
@@ -194,6 +200,32 @@ void ActionModule::HandleKeyPress(int key) {
     case 'P': // 切换预测模式和PID模式
         SetUsePrediction(!IsUsingPrediction());
         break;
+        // 压枪相关按键处理
+    case 'C': // 切换压枪开关
+        sharedState->isAutoRecoilEnabled = !sharedState->isAutoRecoilEnabled.load();
+        std::cout << "自动压枪功能: " << (sharedState->isAutoRecoilEnabled.load() ? "开启" : "关闭") << std::endl;
+        ResetRecoilState();
+        break;
+    case 'D': // 减小压枪力度
+        pressForce = max(0.5f, pressForce - pressForceStep);
+        sharedState->pressForce.store(pressForce);
+        std::cout << "压枪力度 调整为: " << pressForce << std::endl;
+        break;
+    case 'F': // 增加压枪力度
+        pressForce += pressForceStep;
+        sharedState->pressForce.store(pressForce);
+        std::cout << "压枪力度 调整为: " << pressForce << std::endl;
+        break;
+    case 'E': // 减少压枪持续时间
+        pressTime = max(100, pressTime - pressTimeStep);
+        sharedState->pressTime.store(pressTime);
+        std::cout << "压枪持续时间 调整为: " << pressTime << "ms" << std::endl;
+        break;
+    case 'R': // 增加压枪持续时间
+        pressTime += pressTimeStep;
+        sharedState->pressTime.store(pressTime);
+        std::cout << "压枪持续时间 调整为: " << pressTime << "ms" << std::endl;
+        break;
     }
 }
 
@@ -202,6 +234,55 @@ void ActionModule::PIDDebugLoop() {
         // 线程定期睡眠，减少CPU使用
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+}
+
+// 重置压枪状态
+void ActionModule::ResetRecoilState() {
+    auto now = std::chrono::steady_clock::now();
+    sharedState->pressStartTime = now;
+    sharedState->lastPressCheckTime = now;
+}
+
+// 更新压枪状态
+void ActionModule::UpdateRecoilState(bool isLeftButtonDown) {
+    auto now = std::chrono::steady_clock::now();
+
+    if (isLeftButtonDown) {
+        // 如果是刚按下左键
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(
+            now - sharedState->lastPressCheckTime).count() > 100) {
+            // 设置压枪开始时间
+            sharedState->pressStartTime = now;
+        }
+    }
+    else {
+        // 鼠标松开，重置压枪状态
+        ResetRecoilState();
+    }
+
+    // 更新上次检查时间
+    sharedState->lastPressCheckTime = now;
+}
+
+// 计算压枪移动量
+float ActionModule::CalculateRecoilCompensation() {
+    if (!sharedState->isAutoRecoilEnabled.load()) {
+        return 0.0f;
+    }
+
+    auto now = std::chrono::steady_clock::now();
+
+    // 计算从开始压枪到现在的持续时间
+    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now - sharedState->pressStartTime).count();
+
+    // 如果超过了压枪持续时间，停止压枪
+    if (elapsedMs > sharedState->pressTime.load()) {
+        return 0.0f;
+    }
+
+    // 返回压枪力度
+    return sharedState->pressForce.load();
 }
 
 // 归一化移动值到指定范围
@@ -285,9 +366,13 @@ Point2D ActionModule::PredictNextPosition(const Point2D& current) {
 void ActionModule::ProcessLoop() {
     bool prevSideButton1State = false; // 用于检测侧键1状态变化
     bool prevSideButton2State = false; // 用于检测侧键2状态变化
+    bool prevLeftButtonState = false;  // 用于检测左键状态变化
 
     // 重置PID控制器
     pidController.Reset();
+
+    // 重置压枪状态
+    ResetRecoilState();
 
     // 处理主循环
     while (running.load()) {
@@ -312,6 +397,13 @@ void ActionModule::ProcessLoop() {
             std::cout << "自动开火功能: " << (newState ? "开启" : "关闭") << std::endl;
         }
         prevSideButton2State = currentSideButton2State;
+
+        // 检测左键状态
+        bool currentLeftButtonState = mouseController->IsLeftButtonDown();
+        if (currentLeftButtonState != prevLeftButtonState) {
+            UpdateRecoilState(currentLeftButtonState);
+        }
+        prevLeftButtonState = currentLeftButtonState;
 
         // 获取最新预测结果
         PredictionResult prediction;
@@ -364,7 +456,14 @@ void ActionModule::ProcessLoop() {
                         // 在移动层面上进行简单预测
                         Point2D predictedTarget = PredictNextPosition(currentTarget);
 
-                        // 使用控制器移动鼠标(相对坐标)
+                        // Y轴改为下压
+                        if (sharedState->isAutoRecoilEnabled.load() &&
+                            mouseController->IsLeftButtonDown() &&
+                            sharedState->needPressDownWhenAim.load()) {
+                            predictedTarget.y = CalculateRecoilCompensation();
+                        }
+
+                        // 使用控制器移动鼠标(相对坐标)，加入压枪补偿
                         mouseController->MoveToWithTime(
                             static_cast<int>(predictedTarget.x),
                             static_cast<int>(predictedTarget.y),
@@ -387,7 +486,13 @@ void ActionModule::ProcessLoop() {
                         pidOutput.second *= yControlFactor; // Y轴控制力度
 
                         // 归一化移动值到±10范围
-                        auto normalizedMove = NormalizeMovement(pidOutput.first, pidOutput.second, 10.0f);
+                        auto normalizedMove = NormalizeMovement(pidOutput.first, pidOutput.second,10.0f);
+
+                        if (sharedState->isAutoRecoilEnabled.load() &&
+                            mouseController->IsLeftButtonDown() &&
+                            sharedState->needPressDownWhenAim.load()) {
+                            normalizedMove.second = CalculateRecoilCompensation();
+                        }
 
                         // 使用控制器移动鼠标(相对坐标)
                         mouseController->MoveToWithTime(
@@ -406,8 +511,30 @@ void ActionModule::ProcessLoop() {
                 else {
                     pidController.Reset();
                 }
+
+                // 如果自瞄关闭但压枪开启，处理单独的压枪逻辑
+                if (sharedState->isAutoRecoilEnabled.load() && mouseController->IsLeftButtonDown()) {
+                    float recoilCompensation = CalculateRecoilCompensation();
+                    if (recoilCompensation > 0) {
+                        // 移动鼠标实现压枪
+                        mouseController->MoveToWithTime(0, static_cast<int>(recoilCompensation), 5);
+                    }
+                }
             }
         }
+        else {
+            // 无目标情况下的压枪处理
+            if (sharedState->isAutoRecoilEnabled.load() && mouseController->IsLeftButtonDown()) {
+                float recoilCompensation = CalculateRecoilCompensation();
+                if (recoilCompensation > 0) {
+                    // 移动鼠标实现压枪
+                    mouseController->MoveToWithTime(0, static_cast<int>(recoilCompensation), 1);
+                }
+            }
+        }
+
+        // 短暂睡眠，减少CPU使用
+        Sleep(1);
     }
 }
 
@@ -471,6 +598,10 @@ void ActionModule::FireControlLoop() {
             // 从空闲状态转为点射状态的条件：检查目标是否在有效时间窗口内且距离合适
             if (autoFireEnabled && targetInValidTimeWindow && targetDistance < deadZoneThreshold) {
                 mouseController->LeftDown();
+                // 自动开火时更新压枪状态
+                if (sharedState->isAutoRecoilEnabled.load()) {
+                    UpdateRecoilState(true);
+                }
                 currentState = FireState::BURST_ACTIVE;
                 currentDuration = burstDuration(gen); // 随机点射持续时间
                 lastStateChangeTime = currentTime;
@@ -485,6 +616,10 @@ void ActionModule::FireControlLoop() {
             // 点射持续时间结束
             if (elapsedTime >= currentDuration) {
                 mouseController->LeftUp();
+                // 鼠标松开时重置压枪状态
+                if (sharedState->isAutoRecoilEnabled.load()) {
+                    UpdateRecoilState(false);
+                }
                 currentState = FireState::BURST_COOLDOWN;
                 currentDuration = burstCooldown(gen); // 随机冷却时间
                 lastStateChangeTime = currentTime;
@@ -493,6 +628,10 @@ void ActionModule::FireControlLoop() {
             // 只有当目标不在有效时间窗口且距离过远时，才停止点射
             else if (!targetInValidTimeWindow && targetDistance >= 10.0f) {
                 mouseController->LeftUp();
+                // 鼠标松开时重置压枪状态
+                if (sharedState->isAutoRecoilEnabled.load()) {
+                    UpdateRecoilState(false);
+                }
                 currentState = FireState::IDLE;
                 std::cout << "目标丢失，停止点射" << std::endl;
             }
@@ -509,6 +648,10 @@ void ActionModule::FireControlLoop() {
                     }
 
                     mouseController->LeftDown();
+                    // 自动开火时更新压枪状态
+                    if (sharedState->isAutoRecoilEnabled.load()) {
+                        UpdateRecoilState(true);
+                    }
                     currentState = FireState::BURST_ACTIVE;
                     currentDuration = burstDuration(gen);
                     lastStateChangeTime = currentTime;
