@@ -22,6 +22,7 @@
     <ClInclude Include="ActionModule.h" />
     <ClInclude Include="CaptureFactory.h" />
     <ClInclude Include="CaptureRegistry.h" />
+    <ClInclude Include="ConfigModule.h" />
     <ClInclude Include="DetectionModule.h" />
     <ClInclude Include="DetectionResult.h" />
     <ClInclude Include="HidTable.h" />
@@ -44,6 +45,7 @@
     <ClCompile Include="ActionModule.cpp" />
     <ClCompile Include="CaptureFactory.cpp" />
     <ClCompile Include="CaptureRegistry.cpp" />
+    <ClCompile Include="ConfigModule.cpp" />
     <ClCompile Include="DetectionModule.cpp" />
     <ClCompile Include="HumanLikeMovement.cpp" />
     <ClCompile Include="inference.cpp" />

@@ -31,6 +31,18 @@
     <Filter Include="头文件\ActionModule">
       <UniqueIdentifier>{1cc6809f-c934-42ad-9125-c604fcba4b7e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\ConfigModule">
+      <UniqueIdentifier>{7448a848-692c-4fc7-901b-9d94bc0b1755}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\ConfigModule">
+      <UniqueIdentifier>{91151230-f1e4-48b3-9434-32bf43664e53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\ActionModule\keyboard">
+      <UniqueIdentifier>{1f263cc5-06a7-46b0-9d77-94afb01eb72c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\ActionModule\keyboard">
+      <UniqueIdentifier>{964a136c-059d-4c90-ae54-e6f8a68e0cb1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="IFrameCapture.h">
@@ -66,29 +78,35 @@
     <ClInclude Include="HumanLikeMovement.h">
       <Filter>头文件\ActionModule</Filter>
     </ClInclude>
-    <ClInclude Include="MouseController.h">
-      <Filter>头文件\ActionModule</Filter>
-    </ClInclude>
     <ClInclude Include="PredictionModule.h">
-      <Filter>头文件\ActionModule</Filter>
-    </ClInclude>
-    <ClInclude Include="WindowsMouseController.h">
       <Filter>头文件\ActionModule</Filter>
     </ClInclude>
     <ClInclude Include="NetworkStreamCapture.h">
       <Filter>头文件\CaptureModule</Filter>
     </ClInclude>
-    <ClInclude Include="KmboxNetMouseController.h">
-      <Filter>头文件\ActionModule</Filter>
-    </ClInclude>
-    <ClInclude Include="kmboxNet.h">
-      <Filter>头文件\ActionModule</Filter>
+    <ClInclude Include="KeyboardListener.h">
+      <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="HidTable.h">
-      <Filter>头文件\ActionModule</Filter>
+      <Filter>头文件\ActionModule\keyboard</Filter>
+    </ClInclude>
+    <ClInclude Include="kmboxNet.h">
+      <Filter>头文件\ActionModule\keyboard</Filter>
+    </ClInclude>
+    <ClInclude Include="KmboxNetMouseController.h">
+      <Filter>头文件\ActionModule\keyboard</Filter>
+    </ClInclude>
+    <ClInclude Include="MouseController.h">
+      <Filter>头文件\ActionModule\keyboard</Filter>
     </ClInclude>
     <ClInclude Include="my_enc.h">
-      <Filter>头文件\ActionModule</Filter>
+      <Filter>头文件\ActionModule\keyboard</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowsMouseController.h">
+      <Filter>头文件\ActionModule\keyboard</Filter>
+    </ClInclude>
+    <ClInclude Include="ConfigModule.h">
+      <Filter>头文件\ConfigModule</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -122,20 +140,26 @@
     <ClCompile Include="PredictionModule.cpp">
       <Filter>源文件\ActionModule</Filter>
     </ClCompile>
-    <ClCompile Include="WindowsMouseController.cpp">
-      <Filter>源文件\ActionModule</Filter>
-    </ClCompile>
     <ClCompile Include="NetworkStreamCapture.cpp">
       <Filter>源文件\CaptureModule</Filter>
     </ClCompile>
-    <ClCompile Include="KmboxNetMouseController.cpp">
-      <Filter>源文件\ActionModule</Filter>
+    <ClCompile Include="KeyboardListener.cpp">
+      <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="kmboxNet.cpp">
-      <Filter>源文件\ActionModule</Filter>
+      <Filter>源文件\ActionModule\keyboard</Filter>
+    </ClCompile>
+    <ClCompile Include="KmboxNetMouseController.cpp">
+      <Filter>源文件\ActionModule\keyboard</Filter>
     </ClCompile>
     <ClCompile Include="my_enc.cpp">
-      <Filter>源文件\ActionModule</Filter>
+      <Filter>源文件\ActionModule\keyboard</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowsMouseController.cpp">
+      <Filter>源文件\ActionModule\keyboard</Filter>
+    </ClCompile>
+    <ClCompile Include="ConfigModule.cpp">
+      <Filter>源文件\ConfigModule</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

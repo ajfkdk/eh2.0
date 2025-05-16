@@ -17,20 +17,13 @@ struct Point2D {
 };
 
 // 定义线程安全的共享状态结构体
+// SharedState 结构体
 struct SharedState {
-    std::atomic<bool> isAutoAimEnabled{ false };
-    std::atomic<bool> isAutoFireEnabled{ false };
-    std::atomic<float> targetDistance{ 999.0f };
-    std::chrono::steady_clock::time_point targetValidSince{ std::chrono::steady_clock::now() }; // 添加目标最近出现时间点
-    std::mutex mutex;
-
-    // 压枪相关变量
-    std::atomic<bool> isAutoRecoilEnabled{ false }; // 自动压枪开关
-    std::atomic<float> pressForce{ 3.0f }; // 压枪力度
-    std::atomic<int> pressTime{ 800 }; // 压枪持续时间(ms)
-    std::atomic<bool> needPressDownWhenAim{ true }; // 是否在自瞄时下压
-    std::chrono::steady_clock::time_point pressStartTime; // 压枪开始时间
-    std::chrono::steady_clock::time_point lastPressCheckTime; // 上次压枪检查时间
+    // 自瞄状态
+    std::atomic<bool> isAutoAimEnabled{ false }; // 自动瞄准开关
+    std::atomic<bool> isAutoFireEnabled{ false }; // 自动开火开关
+    std::atomic<float> targetDistance{ 999.0f }; // 目标距离
+    std::chrono::steady_clock::time_point targetValidSince; // 目标最近出现时间
 };
 
 // PID控制器结构体
@@ -82,15 +75,10 @@ private:
     static std::unique_ptr<KeyboardListener> keyboardListener; // 键盘监听器
 
     // 预测相关变量
-    static float predictAlpha;  // 预测系数
     static Point2D lastTargetPos;  // 上一帧目标位置
     static bool hasLastTarget;  // 是否有上一帧目标位置
 
-    // 其他变量
-    static constexpr int humanizationFactor = 2; // 拟人化因子
-    static constexpr float deadZoneThreshold = 7.f; // 死区阈值
-    static int aimFov; // 瞄准视场角度
-    static constexpr int targetValidDurationMs = 200; // 目标有效持续时间(毫秒)
+
 
     // 主处理循环 (自瞄)
     static void ProcessLoop();
@@ -150,8 +138,7 @@ public:
     // 获取当前使用模式
     static bool IsUsingPrediction();
 
-    // 设置预测系数
-    static void SetPredictAlpha(float alpha);
+   
 };
 
 #endif // ACTION_MODULE_H
