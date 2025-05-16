@@ -497,59 +497,68 @@ void ActionModule::ProcessLoop() {
     }
 }
 
-// 压枪控制线程 - 负责监控鼠标左键状态和应用压枪效果
+
+// 日志时间戳辅助函数
+std::string NowTimeString() {
+    auto now = std::chrono::system_clock::now();
+    auto t_c = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&t_c), "%H:%M:%S");
+    return ss.str();
+}
+
+// 简单的 debug log，带时间
+#define LogDebug(msg) std::cout << "[" << NowTimeString() << "][DEBUG] " << msg << std::endl
+
 void ActionModule::RecoilControlLoop() {
     bool prevLeftButtonState = false;
 
-    while (running.load()) {
-        // 检查压枪功能是否开启
-        bool isRecoilEnabled = sharedState->isRecoilControlEnabled.load();
+    LogDebug("RecoilControlLoop started.");
 
-        // 获取当前左键状态
+    while (running.load()) {
+        bool isRecoilEnabled = sharedState->isRecoilControlEnabled.load();
         bool currentLeftButtonState = mouseController->IsLeftButtonDown();
 
-        // 检测左键按下状态变化
+        // 检测左键按下/松开
         if (currentLeftButtonState && !prevLeftButtonState) {
-            // 左键刚被按下
+            LogDebug("Left mouse button just pressed.");
             if (isRecoilEnabled) {
+                LogDebug("Recoil control enabled, starting recoil state.");
                 recoilState.isLeftButtonPressed = true;
                 recoilState.pressStartTime = std::chrono::steady_clock::now();
                 recoilState.lastRecoilTime = std::chrono::steady_clock::now();
             }
         }
         else if (!currentLeftButtonState && prevLeftButtonState) {
-            // 左键刚被松开
+            LogDebug("Left mouse button just released.");
             recoilState.isLeftButtonPressed = false;
         }
         prevLeftButtonState = currentLeftButtonState;
 
-        // 如果压枪功能开启且左键按下且没有自瞄目标
+        // 检查是否需要压枪
         if (isRecoilEnabled && recoilState.isLeftButtonPressed.load() &&
             (!sharedState->isAutoAimEnabled.load() || sharedState->targetDistance.load() >= aimFov)) {
 
-            // 检查是否在压枪时间范围内
             auto currentTime = std::chrono::steady_clock::now();
             auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(
                 currentTime - recoilState.pressStartTime).count();
             auto timeSinceLastRecoil = std::chrono::duration_cast<std::chrono::milliseconds>(
                 currentTime - recoilState.lastRecoilTime).count();
 
-            // 如果在压枪时间范围内，且距离上次压枪超过一定时间
-            if (elapsedTime <= sharedState->pressTime.load() && timeSinceLastRecoil >= 16) { // 约60Hz压枪频率
-                // 获取压枪力度
+            // 可压枪判定
+            if (elapsedTime <= sharedState->pressTime.load() && timeSinceLastRecoil >= 16) {
                 float pressForce = sharedState->pressForce.load();
-
-                // 直接进行Y轴下压
-                mouseController->MoveToWithTime(0, static_cast<int>(pressForce), 1);
-
-                // 更新上次压枪时间
+                LogDebug("Performing recoil: elapsedTime=" << elapsedTime << "ms, pressForce=" << pressForce);
+                mouseController->MoveToWithTime(0, static_cast<int>(pressForce), 100);
                 recoilState.lastRecoilTime = currentTime;
             }
         }
 
-        // 短暂睡眠，减少CPU使用
+        // 线程休眠
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
+
+    LogDebug("RecoilControlLoop ended.");
 }
 
 // 点射控制线程 - 负责控制开火行为
