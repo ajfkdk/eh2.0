@@ -1,4 +1,3 @@
-// ActionModule.h
 #ifndef ACTION_MODULE_H
 #define ACTION_MODULE_H
 
@@ -24,6 +23,14 @@ struct SharedState {
     std::atomic<float> targetDistance{ 999.0f };
     std::chrono::steady_clock::time_point targetValidSince{ std::chrono::steady_clock::now() }; // 添加目标最近出现时间点
     std::mutex mutex;
+
+    // 压枪相关变量
+    std::atomic<bool> isAutoRecoilEnabled{ false }; // 自动压枪开关
+    std::atomic<float> pressForce{ 3.0f }; // 压枪力度
+    std::atomic<int> pressTime{ 800 }; // 压枪持续时间(ms)
+    std::atomic<bool> needPressDownWhenAim{ true }; // 是否在自瞄时下压
+    std::chrono::steady_clock::time_point pressStartTime; // 压枪开始时间
+    std::chrono::steady_clock::time_point lastPressCheckTime; // 上次压枪检查时间
 };
 
 // PID控制器结构体
@@ -105,6 +112,15 @@ private:
 
     // 预测下一帧位置
     static Point2D PredictNextPosition(const Point2D& current);
+
+    // 计算压枪移动量
+    static float CalculateRecoilCompensation();
+
+    // 重置压枪状态
+    static void ResetRecoilState();
+
+    // 更新压枪状态
+    static void UpdateRecoilState(bool isLeftButtonDown);
 
 public:
     // 初始化模块
