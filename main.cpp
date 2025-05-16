@@ -35,6 +35,7 @@
 #include "HumanLikeMovement.h"
 #include "CaptureFactory.h"
 #include "KmboxNetMouseController.h"
+#include "ConfigModule.h"
 
 // 设置高优先级和资源分配
 bool SetHighPriorityAndResources() {
@@ -116,6 +117,9 @@ int main() {
         actionThread = ActionModule::Initialize();
         // 设置线程优先级
         SetThreadHighPriority(actionThread);
+
+        // 初始化配置模块
+        ConfigModule::Initialize();
 
 
         // 可选：采集模块-->设置调试模式和显示检测框

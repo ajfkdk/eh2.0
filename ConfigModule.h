@@ -27,7 +27,7 @@ struct HelperConfig {
 
     // 检测模块相关参数
     std::atomic<float> confidenceThreshold{ 0.7f }; // 置信度阈值
-    std::atomic<bool> showDetections{ false }; // 是否显示检测框
+    std::atomic<bool> showDetections{ true }; // 是否显示预测结果，蓝色的点为预测点
     std::atomic<bool> showPredict{ false }; // 是否显示预测
 
     // 目标类别 classes{ "ct_body", "ct_head", "t_body", "t_head" };
