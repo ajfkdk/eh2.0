@@ -105,7 +105,7 @@ int main() {
         // 初始化检测模块
         detectionThread = DetectionModule::Initialize("./123.onnx");
 
-        //detectionThread = DetectionModule::Initialize("./best_yellow.onnx");
+        //detectionThread = DetectionModule::Initialize("./yellow.onnx");
         // 设置线程优先级
         SetThreadHighPriority(detectionThread);
 
