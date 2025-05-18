@@ -420,6 +420,74 @@ char* YOLO_V8::TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::
         }
 #endif // benchmark
     }
+    case YOLO_DETECT_V5:
+    case YOLO_DETECT_V5_HALF:
+    {
+        // YOLOv5输出格式处理
+        // 输出格式通常为[batch, num_detections, 5+num_classes]
+        // 其中5表示: x, y, w, h, confidence
+
+        int numDetections = outputNodeDims[1]; // 检测框数量
+        int numAttributes = outputNodeDims[2]; // 每个检测框的属性数量(5+类别数)
+
+        std::vector<int> class_ids;
+        std::vector<float> confidences;
+        std::vector<cv::Rect> boxes;
+
+        // 处理输出数据
+        for (int i = 0; i < numDetections; ++i) {
+            float* detection = output + i * numAttributes;
+
+            // 获取边界框置信度
+            float confidence = detection[4];
+
+            // 如果置信度超过阈值，处理该检测框
+            if (confidence >= rectConfidenceThreshold) {
+                // 处理类别置信度
+                float* classes_scores = detection + 5;
+                cv::Mat scores(1, numAttributes - 5, CV_32FC1, classes_scores);
+                cv::Point class_id_point;
+                double max_class_score;
+                cv::minMaxLoc(scores, 0, &max_class_score, 0, &class_id_point);
+
+                // 如果类别置信度也超过阈值
+                if (max_class_score > rectConfidenceThreshold) {
+                    // 提取边界框坐标
+                    float x = detection[0]; // 中心x
+                    float y = detection[1]; // 中心y
+                    float w = detection[2]; // 宽度
+                    float h = detection[3]; // 高度
+
+                    // 计算左上角坐标
+                    int left = int((x - 0.5 * w) * resizeScales);
+                    int top = int((y - 0.5 * h) * resizeScales);
+                    int width = int(w * resizeScales);
+                    int height = int(h * resizeScales);
+
+                    // 保存检测结果
+                    boxes.emplace_back(left, top, width, height);
+                    confidences.push_back(confidence);
+                    class_ids.push_back(class_id_point.x);
+                }
+            }
+        }
+
+        // 应用非极大值抑制(NMS)
+        std::vector<int> nmsResult;
+        cv::dnn::NMSBoxes(boxes, confidences, rectConfidenceThreshold, iouThreshold, nmsResult);
+
+        // 保存最终结果
+        for (int i = 0; i < nmsResult.size(); ++i) {
+            int idx = nmsResult[i];
+            DL_RESULT result;
+            result.classId = class_ids[idx];
+            result.confidence = confidences[idx];
+            result.box = boxes[idx];
+            oResult.push_back(result);
+        }
+
+        break;
+    }
 
     return RET_OK;
     }

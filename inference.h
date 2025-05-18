@@ -28,6 +28,7 @@
 
 // 模型输入的默认尺寸
 #define INPUT_SIZE 320
+#define INPUT_SIZE_WA 256
 
 /**
  * 模型类型枚举
@@ -46,6 +47,10 @@ enum MODEL_TYPE
     YOLO_CLS_HALF = 6,       // YOLO分类模型(FP16)
 
     YOLO_DETECT_V10 = 7,     // YOLOv10检测模型
+
+    YOLO_DETECT_V5 = 8, 	// YOLOv5检测模型
+    YOLO_DETECT_V5_HALF = 9,
+
 };
 
 /**

@@ -64,10 +64,14 @@ public:
             params.rectConfidenceThreshold = confidenceThreshold;
             params.iouThreshold = 0.6;
             params.modelPath = modelPath;
-            params.imgSize = { INPUT_SIZE, INPUT_SIZE };
             params.cudaEnable = true;
-            params.modelType = YOLO_DETECT_V8;
 
+            // 瓦
+            params.imgSize = { INPUT_SIZE_WA, INPUT_SIZE_WA };
+            params.modelType = YOLO_DETECT_V5;
+
+            /*params.imgSize = { INPUT_SIZE, INPUT_SIZE };
+            params.modelType = YOLO_DETECT_V8;*/
             // 初始化检测器类别和会话
             yoloDetector->classes = classes;
             const char* result = yoloDetector->CreateSession(params);
