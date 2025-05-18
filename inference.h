@@ -154,7 +154,7 @@ private:
     std::vector<const char*> outputNodeNames;  // 输出节点名称
 
     // 模型参数
-    float* blob;                    // 图像数据块
+    float* blob;                    // 图像数据块（注意：这个成员变量在代码中未使用，保留只是为了兼容性）
     size_t blobSize;                // 数据块大小
     MODEL_TYPE modelType;           // 模型类型
     std::vector<int> imgSize;       // 图像尺寸

@@ -219,17 +219,28 @@ char* YOLO_V8::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult) {
     cv::Mat processedImg;
     PreProcess(iImg, imgSize, processedImg);
 
-    // 为预处理图像分配内存
-    float* blob = new float[processedImg.total() * 3];
-
-    // 转换为blob格式
-    BlobFromImage(processedImg, blob);
-
     // 设置输入节点维度
     std::vector<int64_t> inputNodeDims = { 1, 3, imgSize.at(0), imgSize.at(1) };
 
-    // 执行张量处理（推理）
-    TensorProcess(starttime_1, iImg, blob, inputNodeDims, oResult);
+    // 根据模型类型确定使用的数据精度
+    if (modelType == YOLO_DETECT_V8_HALF || modelType == YOLO_POSE_V8_HALF ||
+        modelType == YOLO_CLS_HALF || modelType == YOLO_DETECT_V5_HALF) {
+        // 半精度浮点(FP16)处理
+#ifdef USE_CUDA
+        half* blob = new half[processedImg.total() * 3];
+        BlobFromImage(processedImg, blob);
+        Ret = TensorProcess(starttime_1, iImg, blob, inputNodeDims, oResult);
+#else
+        Ret = const_cast<char*>("[YOLO_V8]:CUDA not available for half precision models");
+        std::cout << Ret << std::endl;
+#endif
+    }
+    else {
+        // 单精度浮点(FP32)处理
+        float* blob = new float[processedImg.total() * 3];
+        BlobFromImage(processedImg, blob);
+        Ret = TensorProcess(starttime_1, iImg, blob, inputNodeDims, oResult);
+    }
 
     return Ret;
 }
@@ -240,104 +251,346 @@ char* YOLO_V8::RunSession(cv::Mat& iImg, std::vector<DL_RESULT>& oResult) {
  */
 template<typename N>
 char* YOLO_V8::TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::vector<int64_t>& inputNodeDims, std::vector<DL_RESULT>& oResult) {
-    // 创建输入张量
-    Ort::Value inputTensor = Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
-        Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob, 3 * imgSize.at(0) * imgSize.at(1),
-        inputNodeDims.data(), inputNodeDims.size());
+    try {
+        // 创建输入张量
+        Ort::Value inputTensor = Ort::Value::CreateTensor<typename std::remove_pointer<N>::type>(
+            Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob, 3 * imgSize.at(0) * imgSize.at(1),
+            inputNodeDims.data(), inputNodeDims.size());
 
 #ifdef benchmark
-    // 记录推理开始时间
-    clock_t starttime_2 = clock();
+        // 记录推理开始时间
+        clock_t starttime_2 = clock();
 #endif // benchmark
 
-    // 运行推理
-    auto outputTensor = session->Run(options, inputNodeNames.data(), &inputTensor, 1, outputNodeNames.data(),
-        outputNodeNames.size());
+        // 运行推理
+        auto outputTensor = session->Run(options, inputNodeNames.data(), &inputTensor, 1, outputNodeNames.data(),
+            outputNodeNames.size());
 
 #ifdef benchmark
-    // 记录推理结束时间
-    clock_t starttime_3 = clock();
+        // 记录推理结束时间
+        clock_t starttime_3 = clock();
 #endif // benchmark
 
-    // 获取输出张量信息
-    Ort::TypeInfo typeInfo = outputTensor.front().GetTypeInfo();
-    auto tensor_info = typeInfo.GetTensorTypeAndShapeInfo();
-    std::vector<int64_t> outputNodeDims = tensor_info.GetShape();
-    auto output = outputTensor.front().GetTensorMutableData<typename std::remove_pointer<N>::type>();
+        // 获取输出张量信息
+        Ort::TypeInfo typeInfo = outputTensor.front().GetTypeInfo();
+        auto tensor_info = typeInfo.GetTensorTypeAndShapeInfo();
+        std::vector<int64_t> outputNodeDims = tensor_info.GetShape();
 
-    // 释放输入数据内存
-    delete[] blob;
+        // 根据输入类型确定输出数据类型
+        auto output = outputTensor.front().GetTensorMutableData<typename std::remove_pointer<N>::type>();
 
-    // 根据模型类型处理输出
-    switch (modelType)
-    {
-    case YOLO_DETECT_V8:
-    case YOLO_DETECT_V8_HALF:
-    {
-        // YOLOv8检测模型输出处理
-        int numDetections = outputNodeDims[2]; // 检测框数量(8400)
-        int numAttributes = outputNodeDims[1]; // 每个检测框的属性数量(类别数+4)
+        // 释放输入数据内存
+        delete[] blob;
 
-        std::vector<int> class_ids;     // 类别ID
-        std::vector<float> confidences; // 置信度
-        std::vector<cv::Rect> boxes;    // 边界框
+        // 根据模型类型处理输出
+        switch (modelType)
+        {
+        case YOLO_DETECT_V8:
+        case YOLO_DETECT_V8_HALF:
+        {
+            // YOLOv8检测模型输出处理
+            int numDetections = outputNodeDims[2]; // 检测框数量(8400)
+            int numAttributes = outputNodeDims[1]; // 每个检测框的属性数量(类别数+4)
 
-        // 根据模型精度处理输出数据
-        cv::Mat rawData;
-        if (modelType == YOLO_DETECT_V8) {
-            // FP32模型
-            rawData = cv::Mat(numAttributes, numDetections, CV_32F, output);
-        }
-        else {
-            // FP16模型需要转换
-            rawData = cv::Mat(numDetections, numAttributes, CV_16F, output);
-            rawData.convertTo(rawData, CV_32F);
-        }
+            std::vector<int> class_ids;     // 类别ID
+            std::vector<float> confidences; // 置信度
+            std::vector<cv::Rect> boxes;    // 边界框
 
-        // 转置和重塑矩阵以便于处理
-        cv::Mat transposedData;
-        cv::transpose(rawData, transposedData);
-        transposedData = transposedData.reshape(1, { numDetections, numAttributes });
-
-        float* data = (float*)transposedData.data;
-
-        // 处理每个检测框
-        for (int i = 0; i < numDetections; ++i) {
-            // 获取类别置信度
-            float* classes_scores = data + 4;
-            float max_score = *std::max_element(classes_scores, classes_scores + (numAttributes - 4));
-
-            // 如果置信度超过阈值
-            if (max_score >= rectConfidenceThreshold) {
-                // 确定类别ID
-                int class_id = std::distance(classes_scores, std::max_element(classes_scores, classes_scores + (numAttributes - 4)));
-
-                // 获取边界框坐标和尺寸
-                float x = data[0]; // 中心x
-                float y = data[1]; // 中心y
-                float w = data[2]; // 宽度
-                float h = data[3]; // 高度
-
-                // 计算边界框实际坐标（考虑缩放比例）
-                int left = int((x - 0.5 * w) * resizeScales);
-                int top = int((y - 0.5 * h) * resizeScales);
-                int width = int(w * resizeScales);
-                int height = int(h * resizeScales);
-
-                // 保存检测结果
-                boxes.emplace_back(left, top, width, height);
-                confidences.push_back(max_score);
-                class_ids.push_back(class_id);
+            // 根据模型精度处理输出数据
+            cv::Mat rawData;
+            if (std::is_same<typename std::remove_pointer<N>::type, float>::value) {
+                // FP32模型
+                rawData = cv::Mat(numAttributes, numDetections, CV_32F, output);
             }
-            data += numAttributes; // 移动到下一个检测框
-        }
+            else {
+                // FP16模型需要转换到FP32
+                rawData = cv::Mat(numDetections, numAttributes, CV_16F, output);
+                rawData.convertTo(rawData, CV_32F);
+            }
 
-        // 应用非极大值抑制(NMS)去除重叠框
-        std::vector<int> nmsResult;
-        if (boxes.size() == confidences.size()) {
+            // 转置和重塑矩阵以便于处理
+            cv::Mat transposedData;
+            cv::transpose(rawData, transposedData);
+            transposedData = transposedData.reshape(1, { numDetections, numAttributes });
+
+            float* data = (float*)transposedData.data;
+
+            // 处理每个检测框
+            for (int i = 0; i < numDetections; ++i) {
+                // 获取类别置信度
+                float* classes_scores = data + 4;
+                float max_score = *std::max_element(classes_scores, classes_scores + (numAttributes - 4));
+
+                // 如果置信度超过阈值
+                if (max_score >= rectConfidenceThreshold) {
+                    // 确定类别ID
+                    int class_id = std::distance(classes_scores, std::max_element(classes_scores, classes_scores + (numAttributes - 4)));
+
+                    // 获取边界框坐标和尺寸
+                    float x = data[0]; // 中心x
+                    float y = data[1]; // 中心y
+                    float w = data[2]; // 宽度
+                    float h = data[3]; // 高度
+
+                    // 计算边界框实际坐标（考虑缩放比例）
+                    int left = int((x - 0.5 * w) * resizeScales);
+                    int top = int((y - 0.5 * h) * resizeScales);
+                    int width = int(w * resizeScales);
+                    int height = int(h * resizeScales);
+
+                    // 保存检测结果
+                    boxes.emplace_back(left, top, width, height);
+                    confidences.push_back(max_score);
+                    class_ids.push_back(class_id);
+                }
+                data += numAttributes; // 移动到下一个检测框
+            }
+
+            // 应用非极大值抑制(NMS)去除重叠框
+            std::vector<int> nmsResult;
+            if (boxes.size() == confidences.size()) {
+                cv::dnn::NMSBoxes(boxes, confidences, rectConfidenceThreshold, iouThreshold, nmsResult);
+
+                // 保存最终检测结果
+                for (int i = 0; i < nmsResult.size(); ++i) {
+                    int idx = nmsResult[i];
+                    DL_RESULT result;
+                    result.classId = class_ids[idx];
+                    result.confidence = confidences[idx];
+                    result.box = boxes[idx];
+                    oResult.push_back(result);
+                }
+            }
+            else {
+                std::cerr << "Error: The number of boxes and confidences must be equal before applying NMS." << std::endl;
+                return RET_OK;
+            }
+
+#ifdef benchmark
+            // 性能测量代码
+            clock_t starttime_4 = clock();
+            double pre_process_time = (double)(starttime_2 - starttime_1) / CLOCKS_PER_SEC * 1000;
+            double process_time = (double)(starttime_3 - starttime_2) / CLOCKS_PER_SEC * 1000;
+            double post_process_time = (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
+
+            if (cudaEnable)
+            {
+                std::cout << "[YOLO_V8(CUDA)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
+            }
+            else
+            {
+                std::cout << "[YOLO_V8(CPU)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
+            }
+#endif // benchmark
+
+            break;
+        }
+        case YOLO_DETECT_V10:
+        {
+            // YOLOv10检测模型输出处理
+            int numDetections = outputNodeDims[1]; // 检测框数量(300)
+            int numAttributes = outputNodeDims[2]; // 每个检测框的属性数量(6)
+
+            // 创建float版本的输出数据用于处理
+            std::vector<float> outputFloat;
+
+            // 如果是半精度，转换为全精度
+            if (!std::is_same<typename std::remove_pointer<N>::type, float>::value) {
+                half* halfOutput = static_cast<half*>(const_cast<void*>(static_cast<const void*>(output)));
+                outputFloat.resize(numDetections * numAttributes);
+                for (int i = 0; i < numDetections * numAttributes; ++i) {
+                    outputFloat[i] = static_cast<float>(halfOutput[i]);
+                }
+
+                // 处理每个检测结果
+                for (int i = 0; i < numDetections; ++i) {
+                    // 提取检测框信息
+                    float x1 = outputFloat[i * numAttributes + 0]; // 左上角x
+                    float y1 = outputFloat[i * numAttributes + 1]; // 左上角y
+                    float x2 = outputFloat[i * numAttributes + 2]; // 右下角x
+                    float y2 = outputFloat[i * numAttributes + 3]; // 右下角y
+                    float score = outputFloat[i * numAttributes + 4]; // 置信度
+                    int class_id = static_cast<int>(outputFloat[i * numAttributes + 5]); // 类别ID
+
+                    // 检查置信度是否超过阈值
+                    if (score >= rectConfidenceThreshold) {
+                        // 计算边界框实际坐标（考虑缩放比例）
+                        int left = static_cast<int>(x1 * resizeScales);
+                        int top = static_cast<int>(y1 * resizeScales);
+                        int width = static_cast<int>((x2 - x1) * resizeScales);
+                        int height = static_cast<int>((y2 - y1) * resizeScales);
+
+                        // 创建并保存检测结果
+                        DL_RESULT result;
+                        result.classId = class_id;
+                        result.confidence = score;
+                        result.box = cv::Rect(left, top, width, height);
+                        oResult.push_back(result);
+                    }
+                }
+            }
+            else {
+                // 全精度处理
+                float* floatOutput = static_cast<float*>(const_cast<void*>(static_cast<const void*>(output)));
+
+                // 处理每个检测结果
+                for (int i = 0; i < numDetections; ++i) {
+                    // 提取检测框信息
+                    float x1 = floatOutput[i * numAttributes + 0]; // 左上角x
+                    float y1 = floatOutput[i * numAttributes + 1]; // 左上角y
+                    float x2 = floatOutput[i * numAttributes + 2]; // 右下角x
+                    float y2 = floatOutput[i * numAttributes + 3]; // 右下角y
+                    float score = floatOutput[i * numAttributes + 4]; // 置信度
+                    int class_id = static_cast<int>(floatOutput[i * numAttributes + 5]); // 类别ID
+
+                    // 检查置信度是否超过阈值
+                    if (score >= rectConfidenceThreshold) {
+                        // 计算边界框实际坐标（考虑缩放比例）
+                        int left = static_cast<int>(x1 * resizeScales);
+                        int top = static_cast<int>(y1 * resizeScales);
+                        int width = static_cast<int>((x2 - x1) * resizeScales);
+                        int height = static_cast<int>((y2 - y1) * resizeScales);
+
+                        // 创建并保存检测结果
+                        DL_RESULT result;
+                        result.classId = class_id;
+                        result.confidence = score;
+                        result.box = cv::Rect(left, top, width, height);
+                        oResult.push_back(result);
+                    }
+                }
+            }
+
+#ifdef benchmark
+            // 性能测量代码
+            clock_t starttime_4 = clock();
+            double pre_process_time = (double)(starttime_2 - starttime_1) / CLOCKS_PER_SEC * 1000;
+            double process_time = (double)(starttime_3 - starttime_2) / CLOCKS_PER_SEC * 1000;
+            double post_process_time = (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
+
+            if (cudaEnable)
+            {
+                std::cout << "[YOLO_V8(CUDA)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
+            }
+            else
+            {
+                std::cout << "[YOLO_V8(CPU)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
+            }
+#endif // benchmark
+            break;
+        }
+        case YOLO_DETECT_V5:
+        case YOLO_DETECT_V5_HALF:
+        {
+            // YOLOv5输出格式处理
+            // 输出格式通常为[batch, num_detections, 5+num_classes]
+            // 其中5表示: x, y, w, h, confidence
+
+            int numDetections = outputNodeDims[1]; // 检测框数量
+            int numAttributes = outputNodeDims[2]; // 每个检测框的属性数量(5+类别数)
+
+            std::vector<int> class_ids;
+            std::vector<float> confidences;
+            std::vector<cv::Rect> boxes;
+
+            // 创建float版本的输出数据用于处理
+            std::vector<float> outputFloat;
+
+            // 根据模型精度获取输出数据
+            if (!std::is_same<typename std::remove_pointer<N>::type, float>::value) {
+                // 半精度模型转换为全精度处理
+                half* halfOutput = static_cast<half*>(const_cast<void*>(static_cast<const void*>(output)));
+                outputFloat.resize(numDetections * numAttributes);
+                for (int i = 0; i < numDetections * numAttributes; ++i) {
+                    outputFloat[i] = static_cast<float>(halfOutput[i]);
+                }
+
+                // 处理每个检测框
+                for (int i = 0; i < numDetections; ++i) {
+                    float* detection = outputFloat.data() + i * numAttributes;
+
+                    // 获取边界框置信度
+                    float confidence = detection[4];
+
+                    // 如果置信度超过阈值，处理该检测框
+                    if (confidence >= rectConfidenceThreshold) {
+                        // 处理类别置信度
+                        float* classes_scores = detection + 5;
+                        cv::Mat scores(1, numAttributes - 5, CV_32FC1, classes_scores);
+                        cv::Point class_id_point;
+                        double max_class_score;
+                        cv::minMaxLoc(scores, 0, &max_class_score, 0, &class_id_point);
+
+                        // 如果类别置信度也超过阈值
+                        if (max_class_score > rectConfidenceThreshold) {
+                            // 提取边界框坐标
+                            float x = detection[0]; // 中心x
+                            float y = detection[1]; // 中心y
+                            float w = detection[2]; // 宽度
+                            float h = detection[3]; // 高度
+
+                            // 计算左上角坐标
+                            int left = int((x - 0.5 * w) * resizeScales);
+                            int top = int((y - 0.5 * h) * resizeScales);
+                            int width = int(w * resizeScales);
+                            int height = int(h * resizeScales);
+
+                            // 保存检测结果
+                            boxes.emplace_back(left, top, width, height);
+                            confidences.push_back(confidence);
+                            class_ids.push_back(class_id_point.x);
+                        }
+                    }
+                }
+            }
+            else {
+                // 全精度模型直接处理
+                float* floatOutput = static_cast<float*>(const_cast<void*>(static_cast<const void*>(output)));
+
+                // 处理每个检测框
+                for (int i = 0; i < numDetections; ++i) {
+                    float* detection = floatOutput + i * numAttributes;
+
+                    // 获取边界框置信度
+                    float confidence = detection[4];
+
+                    // 如果置信度超过阈值，处理该检测框
+                    if (confidence >= rectConfidenceThreshold) {
+                        // 处理类别置信度
+                        float* classes_scores = detection + 5;
+                        cv::Mat scores(1, numAttributes - 5, CV_32FC1, classes_scores);
+                        cv::Point class_id_point;
+                        double max_class_score;
+                        cv::minMaxLoc(scores, 0, &max_class_score, 0, &class_id_point);
+
+                        // 如果类别置信度也超过阈值
+                        if (max_class_score > rectConfidenceThreshold) {
+                            // 提取边界框坐标
+                            float x = detection[0]; // 中心x
+                            float y = detection[1]; // 中心y
+                            float w = detection[2]; // 宽度
+                            float h = detection[3]; // 高度
+
+                            // 计算左上角坐标
+                            int left = int((x - 0.5 * w) * resizeScales);
+                            int top = int((y - 0.5 * h) * resizeScales);
+                            int width = int(w * resizeScales);
+                            int height = int(h * resizeScales);
+
+                            // 保存检测结果
+                            boxes.emplace_back(left, top, width, height);
+                            confidences.push_back(confidence);
+                            class_ids.push_back(class_id_point.x);
+                        }
+                    }
+                }
+            }
+
+            // 应用非极大值抑制(NMS)
+            std::vector<int> nmsResult;
             cv::dnn::NMSBoxes(boxes, confidences, rectConfidenceThreshold, iouThreshold, nmsResult);
 
-            // 保存最终检测结果
+            // 保存最终结果
             for (int i = 0; i < nmsResult.size(); ++i) {
                 int idx = nmsResult[i];
                 DL_RESULT result;
@@ -346,150 +599,20 @@ char* YOLO_V8::TensorProcess(clock_t& starttime_1, cv::Mat& iImg, N& blob, std::
                 result.box = boxes[idx];
                 oResult.push_back(result);
             }
+
+            break;
         }
-        else {
-            std::cerr << "Error: The number of boxes and confidences must be equal before applying NMS." << std::endl;
-            return RET_OK;
         }
 
-#ifdef benchmark
-        // 性能测量代码
-        clock_t starttime_4 = clock();
-        double pre_process_time = (double)(starttime_2 - starttime_1) / CLOCKS_PER_SEC * 1000;
-        double process_time = (double)(starttime_3 - starttime_2) / CLOCKS_PER_SEC * 1000;
-        double post_process_time = (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
-
-        if (cudaEnable)
-        {
-            std::cout << "[YOLO_V8(CUDA)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
-        }
-        else
-        {
-            std::cout << "[YOLO_V8(CPU)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
-        }
-#endif // benchmark
-
-        break;
+        return RET_OK;
     }
-    case YOLO_DETECT_V10:
-    {
-        // YOLOv10检测模型输出处理
-        int numDetections = outputNodeDims[1]; // 检测框数量(300)
-        int numAttributes = outputNodeDims[2]; // 每个检测框的属性数量(6)
-
-        // 处理每个检测结果
-        for (int i = 0; i < numDetections; ++i) {
-            // 提取检测框信息
-            float x1 = output[i * numAttributes + 0]; // 左上角x
-            float y1 = output[i * numAttributes + 1]; // 左上角y
-            float x2 = output[i * numAttributes + 2]; // 右下角x
-            float y2 = output[i * numAttributes + 3]; // 右下角y
-            float score = output[i * numAttributes + 4]; // 置信度
-            int class_id = static_cast<int>(output[i * numAttributes + 5]); // 类别ID
-
-            // 检查置信度是否超过阈值
-            if (score >= rectConfidenceThreshold) {
-                // 计算边界框实际坐标（考虑缩放比例）
-                int left = static_cast<int>(x1 * resizeScales);
-                int top = static_cast<int>(y1 * resizeScales);
-                int width = static_cast<int>((x2 - x1) * resizeScales);
-                int height = static_cast<int>((y2 - y1) * resizeScales);
-
-                // 创建并保存检测结果
-                DL_RESULT result;
-                result.classId = class_id;
-                result.confidence = score;
-                result.box = cv::Rect(left, top, width, height);
-                oResult.push_back(result);
-            }
-        }
-#ifdef benchmark
-        // 性能测量代码
-        clock_t starttime_4 = clock();
-        double pre_process_time = (double)(starttime_2 - starttime_1) / CLOCKS_PER_SEC * 1000;
-        double process_time = (double)(starttime_3 - starttime_2) / CLOCKS_PER_SEC * 1000;
-        double post_process_time = (double)(starttime_4 - starttime_3) / CLOCKS_PER_SEC * 1000;
-
-        if (cudaEnable)
-        {
-            std::cout << "[YOLO_V8(CUDA)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
-        }
-        else
-        {
-            std::cout << "[YOLO_V8(CPU)]: " << pre_process_time << "ms pre-process, " << process_time << "ms inference, " << post_process_time << "ms post-process." << std::endl;
-        }
-#endif // benchmark
-    }
-    case YOLO_DETECT_V5:
-    case YOLO_DETECT_V5_HALF:
-    {
-        // YOLOv5输出格式处理
-        // 输出格式通常为[batch, num_detections, 5+num_classes]
-        // 其中5表示: x, y, w, h, confidence
-
-        int numDetections = outputNodeDims[1]; // 检测框数量
-        int numAttributes = outputNodeDims[2]; // 每个检测框的属性数量(5+类别数)
-
-        std::vector<int> class_ids;
-        std::vector<float> confidences;
-        std::vector<cv::Rect> boxes;
-
-        // 处理输出数据
-        for (int i = 0; i < numDetections; ++i) {
-            float* detection = output + i * numAttributes;
-
-            // 获取边界框置信度
-            float confidence = detection[4];
-
-            // 如果置信度超过阈值，处理该检测框
-            if (confidence >= rectConfidenceThreshold) {
-                // 处理类别置信度
-                float* classes_scores = detection + 5;
-                cv::Mat scores(1, numAttributes - 5, CV_32FC1, classes_scores);
-                cv::Point class_id_point;
-                double max_class_score;
-                cv::minMaxLoc(scores, 0, &max_class_score, 0, &class_id_point);
-
-                // 如果类别置信度也超过阈值
-                if (max_class_score > rectConfidenceThreshold) {
-                    // 提取边界框坐标
-                    float x = detection[0]; // 中心x
-                    float y = detection[1]; // 中心y
-                    float w = detection[2]; // 宽度
-                    float h = detection[3]; // 高度
-
-                    // 计算左上角坐标
-                    int left = int((x - 0.5 * w) * resizeScales);
-                    int top = int((y - 0.5 * h) * resizeScales);
-                    int width = int(w * resizeScales);
-                    int height = int(h * resizeScales);
-
-                    // 保存检测结果
-                    boxes.emplace_back(left, top, width, height);
-                    confidences.push_back(confidence);
-                    class_ids.push_back(class_id_point.x);
-                }
-            }
-        }
-
-        // 应用非极大值抑制(NMS)
-        std::vector<int> nmsResult;
-        cv::dnn::NMSBoxes(boxes, confidences, rectConfidenceThreshold, iouThreshold, nmsResult);
-
-        // 保存最终结果
-        for (int i = 0; i < nmsResult.size(); ++i) {
-            int idx = nmsResult[i];
-            DL_RESULT result;
-            result.classId = class_ids[idx];
-            result.confidence = confidences[idx];
-            result.box = boxes[idx];
-            oResult.push_back(result);
-        }
-
-        break;
-    }
-
-    return RET_OK;
+    catch (const std::exception& e) {
+        // 处理异常情况
+        std::string errorMsg = std::string("[YOLO_V8]:") + e.what();
+        char* errorStr = new char[errorMsg.length() + 1];
+        strcpy(errorStr, errorMsg.c_str());
+        std::cout << errorStr << std::endl;
+        return errorStr;
     }
 }
 
@@ -507,14 +630,18 @@ char* YOLO_V8::WarmUpSession() {
     // 预处理图像
     PreProcess(iImg, imgSize, processedImg);
 
+    // 设置输入节点维度
+    std::vector<int64_t> YOLO_input_node_dims = { 1, 3, imgSize.at(0), imgSize.at(1) };
+
     // 根据模型类型执行不同的预热流程
-    if (modelType < 4) // FP32模型
+    if (modelType == YOLO_DETECT_V8 || modelType == YOLO_DETECT_V10 ||
+        modelType == YOLO_POSE || modelType == YOLO_CLS || modelType == YOLO_DETECT_V5)
     {
+        // FP32模型预热
         float* blob = new float[iImg.total() * 3];
         BlobFromImage(processedImg, blob);
 
-        // 设置输入维度并创建输入张量
-        std::vector<int64_t> YOLO_input_node_dims = { 1, 3, imgSize.at(0), imgSize.at(1) };
+        // 创建输入张量
         Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
             Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob, 3 * imgSize.at(0) * imgSize.at(1),
             YOLO_input_node_dims.data(), YOLO_input_node_dims.size());
@@ -524,23 +651,15 @@ char* YOLO_V8::WarmUpSession() {
             outputNodeNames.size());
 
         delete[] blob;
-
-        // 输出预热时间
-        clock_t starttime_4 = clock();
-        double post_process_time = (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
-        if (cudaEnable)
-        {
-            std::cout << "[YOLO_V8(CUDA)]: " << "Cuda warm-up cost " << post_process_time << " ms. " << std::endl;
-        }
     }
-    else // FP16模型
+    else
     {
+        // FP16模型预热
 #ifdef USE_CUDA
         half* blob = new half[iImg.total() * 3];
         BlobFromImage(processedImg, blob);
 
-        // 设置输入维度并创建输入张量
-        std::vector<int64_t> YOLO_input_node_dims = { 1,3,imgSize.at(0),imgSize.at(1) };
+        // 创建输入张量
         Ort::Value input_tensor = Ort::Value::CreateTensor<half>(
             Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU), blob, 3 * imgSize.at(0) * imgSize.at(1),
             YOLO_input_node_dims.data(), YOLO_input_node_dims.size());
@@ -550,15 +669,16 @@ char* YOLO_V8::WarmUpSession() {
             outputNodeNames.size());
 
         delete[] blob;
-
-        // 输出预热时间
-        clock_t starttime_4 = clock();
-        double post_process_time = (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
-        if (cudaEnable)
-        {
-            std::cout << "[YOLO_V8(CUDA)]: " << "Cuda warm-up cost " << post_process_time << " ms. " << std::endl;
-        }
 #endif
     }
+
+    // 输出预热时间
+    clock_t starttime_4 = clock();
+    double post_process_time = (double)(starttime_4 - starttime_1) / CLOCKS_PER_SEC * 1000;
+    if (cudaEnable)
+    {
+        std::cout << "[YOLO_V8(CUDA)]: " << "Cuda warm-up cost " << post_process_time << " ms. " << std::endl;
+    }
+
     return RET_OK;
 }
