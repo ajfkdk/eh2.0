@@ -25,7 +25,7 @@ struct SharedState {
     std::chrono::steady_clock::time_point targetValidSince{ std::chrono::steady_clock::now() }; // 添加目标最近出现时间点
 
     // 压枪相关状态
-    std::atomic<bool> isRecoilControlEnabled{ true }; // 压枪开关
+    std::atomic<bool> isRecoilControlEnabled{ false }; // 压枪开关
     std::atomic<float> pressForce{ 5.0f }; // 压枪力度，默认3.0
     std::atomic<int> pressTime{ 1400 }; // 压枪持续时间(ms)，默认1000ms
     std::atomic<bool> needPressDownWhenAim{ true }; // 自瞄时是否需要下压
