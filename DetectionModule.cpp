@@ -66,7 +66,7 @@ void detectionThreadFunc() {
             if (!frame.image.empty()) {
                 // 调整图像大小为320x320
                 cv::Mat resizedImage;
-                cv::resize(frame.image, resizedImage, cv::Size(320, 320));
+                cv::resize(frame.image, resizedImage, cv::Size(256, 256));
 
                 // 处理开始时间
                 auto start = std::chrono::high_resolution_clock::now();
