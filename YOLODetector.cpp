@@ -66,9 +66,9 @@ public:
             params.modelPath = modelPath;
             params.cudaEnable = true;
 
-            
+            // Íß
             params.imgSize = { INPUT_SIZE_WA, INPUT_SIZE_WA };
-            params.modelType = YOLO_DETECT_V8;
+            params.modelType = YOLO_DETECT_V5;
 
             /*params.imgSize = { INPUT_SIZE, INPUT_SIZE };
             params.modelType = YOLO_DETECT_V8;*/
