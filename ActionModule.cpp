@@ -273,7 +273,46 @@ std::pair<float, float> ActionModule::NormalizeMovement(float x, float y, float 
     return { x * factor, y * factor };
 }
 
-// PID控制算法
+//// PID控制算法
+//std::pair<float, float> ActionModule::ApplyPIDControl(float errorX, float errorY) {
+//    auto currentTime = std::chrono::steady_clock::now();
+//    float dt = std::chrono::duration<float>(currentTime - pidController.lastTime).count();
+//    pidController.lastTime = currentTime;
+//
+//    // 防止dt过小或为零导致计算问题
+//    if (dt < 0.001f) dt = 0.001f;
+//
+//    // 提取PID参数
+//    float kp = pidController.kp.load();
+//    float ki = pidController.ki.load();
+//    float kd = pidController.kd.load();
+//
+//    // 计算微分项 在FPS直接通过YOLO观测会有大量的噪声，而PID中的D会放大噪声，所以一般设0
+//    float derivativeX = (errorX - pidController.previousErrorX) / dt;
+//    float derivativeY = (errorY - pidController.previousErrorY) / dt;
+//
+//    // 更新积分项 (带限制，防止积分饱和)
+//    pidController.integralX += errorX * dt;
+//    pidController.integralY += errorY * dt;
+//
+//    // 积分限制
+//    pidController.integralX = max(-pidController.integralLimit,
+//        min(pidController.integralX, pidController.integralLimit));
+//    pidController.integralY = max(-pidController.integralLimit,
+//        min(pidController.integralY, pidController.integralLimit));
+//
+//    // 计算PID输出
+//    float outputX = kp * errorX + ki * pidController.integralX + kd * derivativeX;
+//    float outputY = kp * errorY + ki * pidController.integralY + kd * derivativeY;
+//
+//    // 保存当前误差供下次使用
+//    pidController.previousErrorX = errorX;
+//    pidController.previousErrorY = errorY;
+//
+//    return { outputX, outputY };
+//}
+
+// PID控制算法 Y轴不进行PID控制
 std::pair<float, float> ActionModule::ApplyPIDControl(float errorX, float errorY) {
     auto currentTime = std::chrono::steady_clock::now();
     float dt = std::chrono::duration<float>(currentTime - pidController.lastTime).count();
@@ -287,27 +326,22 @@ std::pair<float, float> ActionModule::ApplyPIDControl(float errorX, float errorY
     float ki = pidController.ki.load();
     float kd = pidController.kd.load();
 
-    // 计算微分项 在FPS直接通过YOLO观测会有大量的噪声，而PID中的D会放大噪声，所以一般设0
+    // 计算X轴的微分项
     float derivativeX = (errorX - pidController.previousErrorX) / dt;
-    float derivativeY = (errorY - pidController.previousErrorY) / dt;
 
-    // 更新积分项 (带限制，防止积分饱和)
+    // 更新X轴积分项 (带限制，防止积分饱和)
     pidController.integralX += errorX * dt;
-    pidController.integralY += errorY * dt;
-
-    // 积分限制
     pidController.integralX = max(-pidController.integralLimit,
         min(pidController.integralX, pidController.integralLimit));
-    pidController.integralY = max(-pidController.integralLimit,
-        min(pidController.integralY, pidController.integralLimit));
 
-    // 计算PID输出
+    // 计算X轴PID输出
     float outputX = kp * errorX + ki * pidController.integralX + kd * derivativeX;
-    float outputY = kp * errorY + ki * pidController.integralY + kd * derivativeY;
 
-    // 保存当前误差供下次使用
+    // 保存当前X误差供下次使用
     pidController.previousErrorX = errorX;
-    pidController.previousErrorY = errorY;
+
+    // Y轴不做PID控制，输出始终为0
+    float outputY = 0.0f;
 
     return { outputX, outputY };
 }
